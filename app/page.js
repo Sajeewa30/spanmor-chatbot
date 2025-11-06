@@ -3,13 +3,12 @@ import Chatbot from '../components/Chatbot';
 export default function Home() {
   const config = {
     webhook: {
-      url: 'https://atd-test.app.n8n.cloud/webhook/4d40cbf6-128f-4647-90f2-df59ad6c7dab/chat',
       route: 'general',
     },
     branding: {
       logo: '', // Optional: add your logo URL
       name: 'Spanmor.au',
-      welcomeText: 'Hi 👋, how can we help?',
+      welcomeText: 'Hi 👋, How can we help?',
       responseTimeText: 'We typically respond right away',
     },
     style: {

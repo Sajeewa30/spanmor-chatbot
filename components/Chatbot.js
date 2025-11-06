@@ -99,7 +99,7 @@ export default function Chatbot({ config: userConfig }) {
         },
       ];
 
-      const res = await fetch(config.webhook.url, {
+      const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -125,7 +125,7 @@ export default function Chatbot({ config: userConfig }) {
         "Hi! I'm here to help you with anything related to our products."
       );
     }
-  }, [addMessage, config.webhook.route, config.webhook.url]);
+  }, [addMessage, config.webhook.route]);
 
   const sendMessage = useCallback(async () => {
     const message = input.trim();
@@ -143,7 +143,7 @@ export default function Chatbot({ config: userConfig }) {
     };
 
     try {
-      const res = await fetch(config.webhook.url, {
+      const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -161,7 +161,7 @@ export default function Chatbot({ config: userConfig }) {
     } finally {
       setSending(false);
     }
-  }, [addMessage, config.webhook.route, config.webhook.url, input, sending, sessionId]);
+  }, [addMessage, config.webhook.route, input, sending, sessionId]);
 
   return (
     <div
