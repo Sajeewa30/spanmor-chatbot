@@ -1,6 +1,64 @@
 "use client";
 import React, { useCallback, useMemo, useState, useEffect, useRef } from "react";
 
+// Render message text with clickable links.
+// Supports Markdown links [text](https://...) and bare URLs.
+function renderMessageWithLinks(text) {
+  const safeText = String(text ?? "");
+  const lines = safeText.split(/\n/);
+  const mdLink = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g;
+  const bareUrl = /(https?:\/\/[^\s]+)/g;
+
+  return lines.map((line, li) => {
+    const pattern = new RegExp(`${mdLink.source}|${bareUrl.source}`, "g");
+    const parts = [];
+    let lastIndex = 0;
+    let match;
+
+    while ((match = pattern.exec(line)) !== null) {
+      if (match.index > lastIndex) {
+        parts.push(line.slice(lastIndex, match.index));
+      }
+      let href, label;
+      if (match[1] && match[2]) {
+        // Markdown link
+        label = match[1];
+        href = match[2];
+      } else {
+        // Bare URL
+        label = match[0];
+        href = match[0];
+      }
+      parts.push(
+        <a
+          key={`msg-link-${li}-${parts.length}`}
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ color: "var(--chat--color-primary)", textDecoration: "underline" }}
+        >
+          {label}
+        </a>
+      );
+      lastIndex = pattern.lastIndex;
+    }
+
+    if (lastIndex < line.length) {
+      parts.push(line.slice(lastIndex));
+    }
+
+    return (
+      <React.Fragment key={`msg-line-${li}`}>
+        {parts}
+        {li < lines.length - 1 ? <br /> : null}
+      </React.Fragment>
+    );
+  });
+}
+
+// Note: Messages are rendered via ReactMarkdown with remark-gfm
+// to support links, lists, tables, code blocks, etc.
+
 const defaultConfig = {
   webhook: { url: "", route: "" },
   branding: {
@@ -38,6 +96,7 @@ export default function Chatbot({ config: userConfig }) {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState([]); // { role: 'user'|'bot', text: string }
   const [sending, setSending] = useState(false);
+  const [hasFocus, setHasFocus] = useState(false);
 
   const positionLeft = config.style.position === "left";
 
@@ -81,6 +140,13 @@ export default function Chatbot({ config: userConfig }) {
       }
     }
   }, [messages]);
+
+  // Ensure typing indicator stays visible by keeping view scrolled
+  useEffect(() => {
+    if (!sending) return;
+    const container = messagesRef.current;
+    if (container) container.scrollTop = container.scrollHeight;
+  }, [sending]);
 
   const addMessage = useCallback((role, text) => {
     setMessages((prev) => [...prev, { role, text }]);
@@ -234,9 +300,21 @@ export default function Chatbot({ config: userConfig }) {
                   ref={i === messages.length - 1 && m.role === "bot" ? lastBotRef : null}
                   style={{ whiteSpace: "pre-wrap" }}
                 >
-                  {m.text}
+                  {renderMessageWithLinks(m.text)}
                 </div>
               ))}
+              {/* User typing indicator */}
+              {hasFocus && !sending && input && (
+                <div className="chat-message user typing-indicator">
+                  <span className="typing-dots"><span className="dot" /><span className="dot" /><span className="dot" /></span>
+                </div>
+              )}
+              {/* Bot typing indicator while awaiting response */}
+              {sending && (
+                <div className="chat-message bot typing-indicator" ref={lastBotRef}>
+                  <span className="typing-dots"><span className="dot" /><span className="dot" /><span className="dot" /></span>
+                </div>
+              )}
             </div>
             <div className="chat-input">
               <textarea
@@ -244,6 +322,8 @@ export default function Chatbot({ config: userConfig }) {
                 rows={1}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
+                onFocus={() => setHasFocus(true)}
+                onBlur={() => setHasFocus(false)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
@@ -440,6 +520,33 @@ export default function Chatbot({ config: userConfig }) {
           color: var(--chat--color-font);
           align-self: flex-start;
           box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+
+        /* Typing indicator */
+        .n8n-chat-widget .chat-message.typing-indicator {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          min-height: 24px;
+        }
+        .n8n-chat-widget .typing-dots {
+          display: inline-flex;
+          gap: 6px;
+          align-items: center;
+        }
+        .n8n-chat-widget .typing-dots .dot {
+          width: 6px;
+          height: 6px;
+          background: currentColor;
+          border-radius: 50%;
+          opacity: 0.3;
+          animation: chat-typing-blink 1.4s infinite both;
+        }
+        .n8n-chat-widget .typing-dots .dot:nth-child(2) { animation-delay: 0.2s; }
+        .n8n-chat-widget .typing-dots .dot:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes chat-typing-blink {
+          0%, 80%, 100% { opacity: 0.2; }
+          40% { opacity: 1; }
         }
 
         .n8n-chat-widget .chat-input {
