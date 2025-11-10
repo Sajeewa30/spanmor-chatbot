@@ -235,6 +235,45 @@ export default function Chatbot({ config: userConfig }) {
     }
   }, [addMessage, config.webhook.route, input, sending, sessionId]);
 
+  // Send a pre-defined quick message using the same webhook flow
+  const sendQuickMessage = useCallback(
+    async (quickText) => {
+      const message = String(quickText || "").trim();
+      if (!message || !sessionId || sending) return;
+      addMessage("user", message);
+      setSending(true);
+
+      const payload = {
+        action: "sendMessage",
+        sessionId,
+        route: config.webhook.route,
+        chatInput: message,
+        metadata: { userId: "" },
+      };
+
+      try {
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        let data = null;
+        try {
+          data = await res.json();
+        } catch (_) {
+          data = null;
+        }
+        const botReply = Array.isArray(data) ? data?.[0]?.output : data?.output;
+        addMessage("bot", botReply || "Hi! I'm here to help you.");
+      } catch (e) {
+        addMessage("bot", "Sorry, there was a problem sending your message.");
+      } finally {
+        setSending(false);
+      }
+    },
+    [addMessage, config.webhook.route, sending, sessionId]
+  );
+
   if (!mounted) return null;
 
   return (
@@ -322,31 +361,54 @@ export default function Chatbot({ config: userConfig }) {
                   <span className="typing-dots"><span className="dot" /><span className="dot" /><span className="dot" /></span>
                 </div>
               )}
-            </div>
-            <div className="chat-input">
-              <textarea
-                placeholder="Type your message here..."
-                rows={1}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onFocus={() => setHasFocus(true)}
-                onBlur={() => setHasFocus(false)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    sendMessage();
-                  }
-                }}
-              />
-              <button type="button" onClick={sendMessage} disabled={sending}>
-                {sending ? "Sending..." : "Send"}
+          </div>
+          <div className="chat-input">
+            <textarea
+              placeholder="Type your message here..."
+              rows={1}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onFocus={() => setHasFocus(true)}
+              onBlur={() => setHasFocus(false)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  sendMessage();
+                }
+              }}
+            />
+            <button type="button" onClick={sendMessage} disabled={sending}>
+              {sending ? "Sending..." : "Send"}
+            </button>
+          </div>
+          {/* Initial quick-start options */}
+          {messages.filter((m) => m.role === "user").length === 0 && (
+            <div className="quick-replies">
+              <button
+                type="button"
+                className="quick-reply"
+                disabled={sending}
+                onClick={() => sendQuickMessage("I need to start a quote with my deck size")}
+                aria-label="I need to start a quote with my deck size"
+              >
+                I need to start a quote with my deck size
+              </button>
+              <button
+                type="button"
+                className="quick-reply"
+                disabled={sending}
+                onClick={() => sendQuickMessage("I Want to know about Spanmor.")}
+                aria-label="I Want to know about Spanmor."
+              >
+                I Want to know about Spanmor.
               </button>
             </div>
-            <div className="chat-footer">
-              <a href={config.branding.poweredBy.link} target="_blank">
-                {config.branding.poweredBy.text}
-              </a>
-            </div>
+          )}
+          <div className="chat-footer">
+            <a href={config.branding.poweredBy.link} target="_blank">
+              {config.branding.poweredBy.text}
+            </a>
+          </div>
           </div>
         )}
       </div>
@@ -608,6 +670,39 @@ export default function Chatbot({ config: userConfig }) {
         }
 
         .n8n-chat-widget .chat-input button:hover { transform: scale(1.05); }
+
+        /* Quick-reply buttons */
+        .n8n-chat-widget .quick-replies {
+          padding: 0 16px 12px 16px;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          background: var(--chat--color-background);
+        }
+
+        .n8n-chat-widget .quick-reply {
+          border: 1px solid rgba(133, 79, 255, 0.25);
+          color: var(--chat--color-font);
+          background: rgba(133, 79, 255, 0.06);
+          padding: 8px 12px;
+          border-radius: 999px;
+          cursor: pointer;
+          font-size: 13px;
+          line-height: 1;
+          transition: background 0.2s, transform 0.2s, border-color 0.2s;
+          font-family: inherit;
+        }
+
+        .n8n-chat-widget .quick-reply:hover {
+          background: rgba(133, 79, 255, 0.12);
+          transform: translateY(-1px);
+          border-color: rgba(133, 79, 255, 0.35);
+        }
+
+        .n8n-chat-widget .quick-reply:disabled {
+          opacity: 0.6;
+          pointer-events: none;
+        }
 
         .n8n-chat-widget .chat-toggle {
           position: fixed;
