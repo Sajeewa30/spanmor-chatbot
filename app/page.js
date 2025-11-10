@@ -6,7 +6,7 @@ export default function Home() {
       route: 'general',
     },
     branding: {
-      logo: '', // Optional: add your logo URL
+      logo: '/logo.svg', // Optional: add your logo URL
       name: 'Spanmor.au',
       welcomeText: 'Hi 👋, How can we help?',
       responseTimeText: 'We typically respond right away',

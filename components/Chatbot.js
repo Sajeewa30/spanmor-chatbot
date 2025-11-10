@@ -97,6 +97,7 @@ export default function Chatbot({ config: userConfig }) {
   const [messages, setMessages] = useState([]); // { role: 'user'|'bot', text: string }
   const [sending, setSending] = useState(false);
   const [hasFocus, setHasFocus] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   const positionLeft = config.style.position === "left";
 
@@ -120,6 +121,11 @@ export default function Chatbot({ config: userConfig }) {
     document.addEventListener("mousedown", onDocMouseDown);
     return () => document.removeEventListener("mousedown", onDocMouseDown);
   }, [open]);
+
+  // Mount gate to avoid FOUC during SSR/hydration
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Auto-scroll behavior: user → bottom, bot → start of reply
   useEffect(() => {
@@ -229,6 +235,8 @@ export default function Chatbot({ config: userConfig }) {
     }
   }, [addMessage, config.webhook.route, input, sending, sessionId]);
 
+  if (!mounted) return null;
+
   return (
     <div
       className="n8n-chat-widget"
@@ -240,10 +248,11 @@ export default function Chatbot({ config: userConfig }) {
         ["--n8n-chat-font-color"]: config.style.fontColor,
       }}
     >
-      <div
-        className={`chat-container${open ? " open" : ""}${positionLeft ? " position-left" : ""}`}
-        ref={containerRef}
-      >
+        <div
+          className={`chat-container${open ? " open" : ""}${positionLeft ? " position-left" : ""}`}
+          ref={containerRef}
+          style={{ display: open ? "flex" : "none" }}
+        >
         {/* Welcome/new conversation view */}
         {!started && (
           <>
@@ -251,7 +260,6 @@ export default function Chatbot({ config: userConfig }) {
               {config.branding.logo ? (
                 <img src={config.branding.logo} alt={config.branding.name} />
               ) : null}
-              <span>{config.branding.name}</span>
               <button
                 className="close-button"
                 aria-label="Close"
@@ -285,7 +293,6 @@ export default function Chatbot({ config: userConfig }) {
               {config.branding.logo ? (
                 <img src={config.branding.logo} alt={config.branding.name} />
               ) : null}
-              <span>{config.branding.name}</span>
               <button
                 className="close-button"
                 aria-label="Close"
@@ -351,6 +358,23 @@ export default function Chatbot({ config: userConfig }) {
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-label="Open chat"
+        style={{
+          position: "fixed",
+          bottom: 20,
+          right: positionLeft ? "auto" : 20,
+          left: positionLeft ? 20 : "auto",
+          width: 60,
+          height: 60,
+          borderRadius: 30,
+          zIndex: 999,
+          background: `linear-gradient(135deg, ${config.style.primaryColor} 0%, ${config.style.secondaryColor} 100%)`,
+          color: "white",
+          border: "none",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          cursor: "pointer",
+        }}
       >
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
           <path d="M12 2C6.477 2 2 6.477 2 12c0 1.821.487 3.53 1.338 5L2.5 21.5l4.5-.838A9.955 9.955 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2zm0 18c-1.476 0-2.886-.313-4.156-.878l-3.156.586.586-3.156A7.962 7.962 0 014 12c0-4.411 3.589-8 8-8s8 3.589 8 8-3.589 8-8 8z" />
@@ -397,6 +421,7 @@ export default function Chatbot({ config: userConfig }) {
           padding: 16px;
           display: flex;
           align-items: center;
+          justify-content: center;
           gap: 12px;
           border-bottom: 1px solid rgba(133, 79, 255, 0.1);
           position: relative;
@@ -425,15 +450,11 @@ export default function Chatbot({ config: userConfig }) {
         }
 
         .n8n-chat-widget .brand-header img {
-          width: 32px;
-          height: 32px;
+          height: 48px;
+          width: auto;
         }
 
-        .n8n-chat-widget .brand-header span {
-          font-size: 18px;
-          font-weight: 500;
-          color: var(--chat--color-font);
-        }
+        
 
         .n8n-chat-widget .new-conversation {
           position: absolute;
