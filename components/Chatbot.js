@@ -98,6 +98,9 @@ export default function Chatbot({ config: userConfig }) {
   const [sending, setSending] = useState(false);
   const [hasFocus, setHasFocus] = useState(false);
   const [mounted, setMounted] = useState(false);
+  // Typing speed for bot replies (milliseconds per character)
+  // Adjust via `userConfig.typingSpeedMs` when using the component.
+  const typingSpeedMs = Math.max(1, Number(userConfig?.typingSpeedMs ?? 20));
 
   const positionLeft = config.style.position === "left";
 
@@ -107,6 +110,8 @@ export default function Chatbot({ config: userConfig }) {
   // Refs for scrolling behavior
   const messagesRef = useRef(null);
   const lastBotRef = useRef(null);
+  // Interval reference for the typewriter effect
+  const typingTimerRef = useRef(null);
 
   // Close when clicking outside the chat container and toggle button
   useEffect(() => {
@@ -125,6 +130,16 @@ export default function Chatbot({ config: userConfig }) {
   // Mount gate to avoid FOUC during SSR/hydration
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  // Clear any running typing interval on unmount
+  useEffect(() => {
+    return () => {
+      if (typingTimerRef.current) {
+        clearInterval(typingTimerRef.current);
+        typingTimerRef.current = null;
+      }
+    };
   }, []);
 
   // Auto-scroll behavior: user → bottom, bot → start of reply
@@ -158,6 +173,47 @@ export default function Chatbot({ config: userConfig }) {
     setMessages((prev) => [...prev, { role, text }]);
   }, []);
 
+  // Typewriter effect for bot messages: streams characters over time
+  const typeOutBotMessage = useCallback(
+    (fullText) => {
+      const text = String(fullText ?? "");
+
+      // If a previous typing timer is active, clear it before starting a new one
+      if (typingTimerRef.current) {
+        clearInterval(typingTimerRef.current);
+        typingTimerRef.current = null;
+      }
+
+      // Add an empty bot message to start typing into
+      setMessages((prev) => [...prev, { role: "bot", text: "" }]);
+
+      let i = 0;
+      const len = text.length;
+      if (len === 0) return; // nothing to type
+
+      typingTimerRef.current = setInterval(() => {
+        i += 1;
+        setMessages((prev) => {
+          if (!prev.length) return prev;
+          const updated = [...prev];
+          const idx = updated.length - 1; // last message is the one we just added
+          updated[idx] = { ...updated[idx], text: text.slice(0, i) };
+          return updated;
+        });
+
+        // Keep the latest content visible as it grows
+        const container = messagesRef.current;
+        if (container) container.scrollTop = container.scrollHeight;
+
+        if (i >= len) {
+          clearInterval(typingTimerRef.current);
+          typingTimerRef.current = null;
+        }
+      }, typingSpeedMs);
+    },
+    [typingSpeedMs]
+  );
+
   const startNewConversation = useCallback(async () => {
     try {
       const id = crypto.randomUUID();
@@ -185,19 +241,17 @@ export default function Chatbot({ config: userConfig }) {
 
       setStarted(true);
       const botReply = Array.isArray(data) ? data?.[0]?.output : data?.output;
-      addMessage(
-        "bot",
+      typeOutBotMessage(
         botReply || "Hi! I'm here to help you with anything related to our products."
       );
     } catch (e) {
       // Fail gracefully
       setStarted(true);
-      addMessage(
-        "bot",
+      typeOutBotMessage(
         "Hi! I'm here to help you with anything related to our products."
       );
-    }
-  }, [addMessage, config.webhook.route]);
+  }
+  }, [addMessage, config.webhook.route, typeOutBotMessage]);
 
   const sendMessage = useCallback(async () => {
     const message = input.trim();
@@ -227,13 +281,16 @@ export default function Chatbot({ config: userConfig }) {
         data = null;
       }
       const botReply = Array.isArray(data) ? data?.[0]?.output : data?.output;
-      addMessage("bot", botReply || "Hi! I'm here to help you.");
+      // Hide the loading indicator and start typing the reply
+      setSending(false);
+      typeOutBotMessage(botReply || "Hi! I'm here to help you.");
     } catch (e) {
+      setSending(false);
       addMessage("bot", "Sorry, there was a problem sending your message.");
     } finally {
-      setSending(false);
+      // no-op: sending already handled above
     }
-  }, [addMessage, config.webhook.route, input, sending, sessionId]);
+  }, [addMessage, config.webhook.route, input, sending, sessionId, typeOutBotMessage]);
 
   // Send a pre-defined quick message using the same webhook flow
   const sendQuickMessage = useCallback(
@@ -264,14 +321,16 @@ export default function Chatbot({ config: userConfig }) {
           data = null;
         }
         const botReply = Array.isArray(data) ? data?.[0]?.output : data?.output;
-        addMessage("bot", botReply || "Hi! I'm here to help you.");
+        setSending(false);
+        typeOutBotMessage(botReply || "Hi! I'm here to help you.");
       } catch (e) {
+        setSending(false);
         addMessage("bot", "Sorry, there was a problem sending your message.");
       } finally {
-        setSending(false);
+        // no-op: sending already handled above
       }
     },
-    [addMessage, config.webhook.route, sending, sessionId]
+    [addMessage, config.webhook.route, sending, sessionId, typeOutBotMessage]
   );
 
   if (!mounted) return null;
