@@ -61,6 +61,7 @@ function renderMessageWithLinks(text) {
 
 const defaultConfig = {
   webhook: { url: "", route: "" },
+  typingSpeedMs: 20,
   branding: {
     logo: "",
     name: "",
@@ -86,6 +87,9 @@ export default function Chatbot({ config: userConfig }) {
       webhook: { ...defaultConfig.webhook, ...(userConfig?.webhook || {}) },
       branding: { ...defaultConfig.branding, ...(userConfig?.branding || {}) },
       style: { ...defaultConfig.style, ...(userConfig?.style || {}) },
+      typingSpeedMs: Number(
+        userConfig?.typingSpeedMs ?? defaultConfig.typingSpeedMs
+      ),
     };
     return merged;
   }, [userConfig]);
@@ -99,8 +103,8 @@ export default function Chatbot({ config: userConfig }) {
   const [hasFocus, setHasFocus] = useState(false);
   const [mounted, setMounted] = useState(false);
   // Typing speed for bot replies (milliseconds per character)
-  // Adjust via `userConfig.typingSpeedMs` when using the component.
-  const typingSpeedMs = Math.max(1, Number(userConfig?.typingSpeedMs ?? 20));
+  // Adjust via `config.typingSpeedMs` when using the component.
+  const typingSpeedMs = Math.max(1, Number(config?.typingSpeedMs ?? 20));
 
   const positionLeft = config.style.position === "left";
 

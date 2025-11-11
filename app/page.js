@@ -2,6 +2,7 @@ import Chatbot from '../components/Chatbot';
 
 export default function Home() {
   const config = {
+    typingSpeedMs: 15, // milliseconds per character (lower is faster)
     webhook: {
       route: 'general',
     },
