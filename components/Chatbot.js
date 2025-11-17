@@ -116,6 +116,8 @@ export default function Chatbot({ config: userConfig }) {
   const lastBotRef = useRef(null);
   // Interval reference for the typewriter effect
   const typingTimerRef = useRef(null);
+  // Track which bot message is currently being typed (by id)
+  const typingMessageIdRef = useRef(null);
 
   // Close when clicking outside the chat container and toggle button
   useEffect(() => {
@@ -174,7 +176,8 @@ export default function Chatbot({ config: userConfig }) {
   }, [sending]);
 
   const addMessage = useCallback((role, text) => {
-    setMessages((prev) => [...prev, { role, text }]);
+    const id = crypto.randomUUID();
+    setMessages((prev) => [...prev, { id, role, text }]);
   }, []);
 
   // Typewriter effect for bot messages: streams characters over time
@@ -188,8 +191,10 @@ export default function Chatbot({ config: userConfig }) {
         typingTimerRef.current = null;
       }
 
-      // Add an empty bot message to start typing into
-      setMessages((prev) => [...prev, { role: "bot", text: "" }]);
+      // Create a dedicated bot message with a stable id to update
+      const id = crypto.randomUUID();
+      typingMessageIdRef.current = id;
+      setMessages((prev) => [...prev, { id, role: "bot", text: "" }]);
 
       let i = 0;
       const len = text.length;
@@ -200,7 +205,12 @@ export default function Chatbot({ config: userConfig }) {
         setMessages((prev) => {
           if (!prev.length) return prev;
           const updated = [...prev];
-          const idx = updated.length - 1; // last message is the one we just added
+          const targetId = typingMessageIdRef.current;
+          const idx = updated.findIndex((m) => m.id === targetId);
+          if (idx === -1) {
+            // The target message no longer exists; stop typing
+            return prev;
+          }
           updated[idx] = { ...updated[idx], text: text.slice(0, i) };
           return updated;
         });
@@ -212,6 +222,7 @@ export default function Chatbot({ config: userConfig }) {
         if (i >= len) {
           clearInterval(typingTimerRef.current);
           typingTimerRef.current = null;
+          typingMessageIdRef.current = null;
         }
       }, typingSpeedMs);
     },
@@ -404,7 +415,7 @@ export default function Chatbot({ config: userConfig }) {
             <div className="chat-messages" ref={messagesRef}>
               {messages.map((m, i) => (
                 <div
-                  key={i}
+                  key={m.id || i}
                   className={`chat-message ${m.role}`}
                   ref={i === messages.length - 1 && m.role === "bot" ? lastBotRef : null}
                   style={{ whiteSpace: "pre-wrap" }}
