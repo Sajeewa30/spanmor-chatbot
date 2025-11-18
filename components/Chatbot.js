@@ -302,7 +302,7 @@ export default function Chatbot({ config: userConfig }) {
       setStarted(true);
       const botReply = Array.isArray(data) ? data?.[0]?.output : data?.output;
       typeOutBotMessage(
-        botReply || `Hi there! Welcome to Spanmor. Im here to help you plan your deck and get a quick, accurate quote.
+        botReply || `Hi there! Welcome to Spanmor. I'm here to help you plan your deck and get a quick, accurate quote.
 Our Deck Calculator allows you to design, price, and customise your deck in under 5 minutes. You can see a visual layout preview, get real-time pricing, and download a PDF of your design and quote.
 
 Shall we get started?`
@@ -311,7 +311,7 @@ Shall we get started?`
       // Fail gracefully
       setStarted(true);
       typeOutBotMessage(
-        `Hi there! Welcome to Spanmor. Im here to help you plan your deck and get a quick, accurate quote.
+        `Hi there! Welcome to Spanmor. I'm here to help you plan your deck and get a quick, accurate quote.
 Our Deck Calculator allows you to design, price, and customise your deck in under 5 minutes. You can see a visual layout preview, get real-time pricing, and download a PDF of your design and quote.
 
 Shall we get started?`
