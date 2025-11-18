@@ -3,21 +3,33 @@ import React, { useCallback, useMemo, useState, useEffect, useRef } from "react"
 
 // Render message text with clickable links.
 // Supports Markdown links [text](https://...) and bare URLs.
-function renderMessageWithLinks(text) {
+function renderMessageWithLinks(text, opts = {}) {
+  const isTyping = !!opts.isTyping;
   const safeText = String(text ?? "");
   const lines = safeText.split(/\n/);
   const mdLink = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g;
   const bareUrl = /(https?:\/\/[^\s]+)/g;
 
   return lines.map((line, li) => {
+    // While typing, hide partially-typed markdown link URLs like: [label](https://...<incomplete>)
+    // Replace them with just the label so users never see the long URL during typing.
+    let displayLine = line;
+    if (isTyping) {
+      const partialMd = /\[([^\]]+)\]\([^)]*$/; // incomplete markdown link until end of line
+      // Replace repeatedly in case of multiple occurrences on the same line
+      while (partialMd.test(displayLine)) {
+        displayLine = displayLine.replace(partialMd, "$1");
+      }
+    }
+
     const pattern = new RegExp(`${mdLink.source}|${bareUrl.source}`, "g");
     const parts = [];
     let lastIndex = 0;
     let match;
 
-    while ((match = pattern.exec(line)) !== null) {
+    while ((match = pattern.exec(displayLine)) !== null) {
       if (match.index > lastIndex) {
-        parts.push(line.slice(lastIndex, match.index));
+        parts.push(displayLine.slice(lastIndex, match.index));
       }
       let href, label;
       if (match[1] && match[2]) {
@@ -30,21 +42,32 @@ function renderMessageWithLinks(text) {
         href = match[0];
       }
       parts.push(
-        <a
-          key={`msg-link-${li}-${parts.length}`}
-          href={href}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{ color: "var(--chat--color-primary)", textDecoration: "underline" }}
-        >
-          {label}
-        </a>
+        isTyping ? (
+          // While typing: render a non-clickable span styled like a link
+          <span
+            key={`msg-link-${li}-${parts.length}`}
+            className="link-like"
+            style={{ color: "var(--chat--color-primary)", textDecoration: "underline" }}
+          >
+            {label}
+          </span>
+        ) : (
+          <a
+            key={`msg-link-${li}-${parts.length}`}
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: "var(--chat--color-primary)", textDecoration: "underline" }}
+          >
+            {label}
+          </a>
+        )
       );
       lastIndex = pattern.lastIndex;
     }
 
-    if (lastIndex < line.length) {
-      parts.push(line.slice(lastIndex));
+    if (lastIndex < displayLine.length) {
+      parts.push(displayLine.slice(lastIndex));
     }
 
     return (
@@ -448,7 +471,11 @@ Shall we get started?`
                   ref={i === messages.length - 1 && m.role === "bot" ? lastBotRef : null}
                   style={{ whiteSpace: "pre-wrap" }}
                 >
-                  {renderMessageWithLinks(m.text)}
+                  {renderMessageWithLinks(m.text, {
+                    isTyping:
+                      Boolean(typingTimerRef.current) &&
+                      m.id === typingMessageIdRef.current,
+                  })}
                 </div>
               ))}
               {/* User typing indicator */}
