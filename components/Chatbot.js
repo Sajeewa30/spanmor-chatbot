@@ -118,6 +118,8 @@ export default function Chatbot({ config: userConfig }) {
   const typingTimerRef = useRef(null);
   // Track which bot message is currently being typed (by id)
   const typingMessageIdRef = useRef(null);
+  // Full text of the message currently being typed (for graceful finalization)
+  const typingFullTextRef = useRef("");
 
   // Close when clicking outside the chat container and toggle button
   useEffect(() => {
@@ -183,34 +185,54 @@ export default function Chatbot({ config: userConfig }) {
   // Typewriter effect for bot messages: streams characters over time
   const typeOutBotMessage = useCallback(
     (fullText) => {
-      const text = String(fullText ?? "");
+      const text = String(fullText ?? "").trim();
 
       // If a previous typing timer is active, clear it before starting a new one
       if (typingTimerRef.current) {
+        // Finalize the currently typing message before starting a new one
+        const prevId = typingMessageIdRef.current;
+        const prevFull = typingFullTextRef.current || "";
+        if (prevId) {
+          setMessages((prev) => {
+            const updated = [...prev];
+            const idx = updated.findIndex((m) => m.id === prevId);
+            if (idx !== -1) {
+              updated[idx] = { ...updated[idx], text: prevFull };
+            }
+            return updated;
+          });
+        }
         clearInterval(typingTimerRef.current);
         typingTimerRef.current = null;
+      }
+      // Reset any previous typing target
+      typingMessageIdRef.current = null;
+      typingFullTextRef.current = "";
+
+      // Skip creating an empty bot bubble if there's no content
+      const len = text.length;
+      if (len === 0) {
+        return;
       }
 
       // Create a dedicated bot message with a stable id to update
       const id = crypto.randomUUID();
       typingMessageIdRef.current = id;
+      typingFullTextRef.current = text;
+      // Create the target bot message we will progressively update
       setMessages((prev) => [...prev, { id, role: "bot", text: "" }]);
 
       let i = 0;
-      const len = text.length;
-      if (len === 0) return; // nothing to type
 
       typingTimerRef.current = setInterval(() => {
         i += 1;
+        // Use the stable id captured in closure to avoid racing with ref clearing
+        const targetId = id;
         setMessages((prev) => {
           if (!prev.length) return prev;
           const updated = [...prev];
-          const targetId = typingMessageIdRef.current;
           const idx = updated.findIndex((m) => m.id === targetId);
-          if (idx === -1) {
-            // The target message no longer exists; stop typing
-            return prev;
-          }
+          if (idx === -1) return prev;
           updated[idx] = { ...updated[idx], text: text.slice(0, i) };
           return updated;
         });
@@ -257,13 +279,19 @@ export default function Chatbot({ config: userConfig }) {
       setStarted(true);
       const botReply = Array.isArray(data) ? data?.[0]?.output : data?.output;
       typeOutBotMessage(
-        botReply || "Hi! I'm here to help you with anything related to our products."
+        botReply || `Hi there! Welcome to Spanmor. Im here to help you plan your deck and get a quick, accurate quote.
+Our Deck Calculator allows you to design, price, and customise your deck in under 5 minutes. You can see a visual layout preview, get real-time pricing, and download a PDF of your design and quote.
+
+Shall we get started?`
       );
     } catch (e) {
       // Fail gracefully
       setStarted(true);
       typeOutBotMessage(
-        "Hi! I'm here to help you with anything related to our products."
+        `Hi there! Welcome to Spanmor. Im here to help you plan your deck and get a quick, accurate quote.
+Our Deck Calculator allows you to design, price, and customise your deck in under 5 minutes. You can see a visual layout preview, get real-time pricing, and download a PDF of your design and quote.
+
+Shall we get started?`
       );
   }
   }, [addMessage, config.webhook.route, typeOutBotMessage]);
