@@ -531,6 +531,15 @@ Shall we get started?`
               >
                 I Want to know about Spanmor.
               </button>
+              <button
+                type="button"
+                className="quick-reply"
+                disabled={sending}
+                onClick={() => sendQuickMessage("I need engineering expert review - Send an Email")}
+                aria-label="I need engineering expert review - Send an Email"
+              >
+                I need engineering expert review - Send an Email
+              </button>
             </div>
           )}
           <div className="chat-footer">
@@ -589,7 +598,7 @@ Shall we get started?`
           z-index: 1000;
           display: none;
           width: 380px;
-          height: 600px;
+          height: 650px;
           background: var(--chat--color-background);
           border-radius: 12px;
           box-shadow: 0 8px 32px rgba(133, 79, 255, 0.15);
