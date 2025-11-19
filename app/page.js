@@ -13,8 +13,9 @@ export default function Home() {
       responseTimeText: 'We typically respond right away',
     },
     style: {
-      primaryColor: '#854fff',
-      secondaryColor: '#6b3fd4',
+      // Spanmor accurate red
+      primaryColor: '#E0282A',
+      secondaryColor: '#E0282A',
       position: 'right', // or 'left'
       backgroundColor: '#ffffff',
       fontColor: '#333333',

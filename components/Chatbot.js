@@ -550,10 +550,10 @@ Shall we get started?`
                 type="button"
                 className="quick-reply"
                 disabled={sending}
-                onClick={() => sendQuickMessage("I Want to know about Spanmor.")}
-                aria-label="I Want to know about Spanmor."
+                onClick={() => sendQuickMessage("I Want to know about Spanmor")}
+                aria-label="I Want to know about Spanmor"
               >
-                I Want to know about Spanmor.
+                I Want to know about Spanmor
               </button>
               <button
                 type="button"
