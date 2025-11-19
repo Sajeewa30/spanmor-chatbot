@@ -282,23 +282,35 @@ export default function Chatbot({ config: userConfig }) {
   );
 
   const startNewConversation = useCallback(async () => {
-    try {
-      const id = crypto.randomUUID();
-      setSessionId(id);
-      const payload = [
-        {
-          action: "loadPreviousSession",
-          sessionId: id,
-          route: config.webhook.route,
-          metadata: { userId: "" },
-        },
-      ];
+    // Open UI immediately and show typing indicator while loading
+    const id = crypto.randomUUID();
+    setSessionId(id);
+    setStarted(true);
+    setSending(true);
 
+    const payload = [
+      {
+        action: "loadPreviousSession",
+        sessionId: id,
+        route: config.webhook.route,
+        metadata: { userId: "" },
+      },
+    ];
+
+    const controller = new AbortController();
+    const timeoutMs = 8000;
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
+
       let data = null;
       try {
         data = await res.json();
@@ -306,8 +318,8 @@ export default function Chatbot({ config: userConfig }) {
         data = null;
       }
 
-      setStarted(true);
       const botReply = Array.isArray(data) ? data?.[0]?.output : data?.output;
+      setSending(false);
       typeOutBotMessage(
         botReply || `Hi there! Welcome to Spanmor. I'm here to help you plan your deck and get a quick, accurate quote.
 Our Deck Calculator allows you to design, price, and customise your deck in under 5 minutes. You can see a visual layout preview, get real-time pricing, and download a PDF of your design and quote.
@@ -315,16 +327,17 @@ Our Deck Calculator allows you to design, price, and customise your deck in unde
 Shall we get started?`
       );
     } catch (e) {
-      // Fail gracefully
-      setStarted(true);
+      clearTimeout(timeoutId);
+      // Fail gracefully with local greeting
+      setSending(false);
       typeOutBotMessage(
         `Hi there! Welcome to Spanmor. I'm here to help you plan your deck and get a quick, accurate quote.
 Our Deck Calculator allows you to design, price, and customise your deck in under 5 minutes. You can see a visual layout preview, get real-time pricing, and download a PDF of your design and quote.
 
 Shall we get started?`
       );
-  }
-  }, [addMessage, config.webhook.route, typeOutBotMessage]);
+    }
+  }, [config.webhook.route, typeOutBotMessage]);
 
   const sendMessage = useCallback(async () => {
     const display = String(input ?? "").trim();
