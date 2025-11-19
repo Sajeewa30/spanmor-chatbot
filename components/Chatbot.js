@@ -536,7 +536,7 @@ Shall we get started?`
                 className="quick-reply"
                 disabled={sending}
                 onClick={() => sendQuickMessage("I need engineering expert review - Send an Email")}
-                aria-label="I need engineering expert review - Send an Email"
+                aria-label="I need engineering expert assistance."
               >
                 I need engineering expert review - Send an Email
               </button>
