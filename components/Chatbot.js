@@ -105,6 +105,13 @@ const defaultConfig = {
 };
 
 export default function Chatbot({ config: userConfig }) {
+  // Light input normalization: collapse spaces, trim, drop trailing punctuation
+  const normalizeInput = useCallback((text) => {
+    const raw = String(text ?? "");
+    const collapsed = raw.replace(/\s+/g, " ").trim();
+    // Remove simple trailing punctuation like ., !, ?, …
+    return collapsed.replace(/[.!?…]+$/g, "");
+  }, []);
   const config = useMemo(() => {
     const merged = {
       webhook: { ...defaultConfig.webhook, ...(userConfig?.webhook || {}) },
@@ -320,7 +327,7 @@ Shall we get started?`
   }, [addMessage, config.webhook.route, typeOutBotMessage]);
 
   const sendMessage = useCallback(async () => {
-    const message = input.trim();
+    const message = normalizeInput(input);
     if (!message || !sessionId || sending) return;
     addMessage("user", message);
     setInput("");
@@ -361,7 +368,7 @@ Shall we get started?`
   // Send a pre-defined quick message using the same webhook flow
   const sendQuickMessage = useCallback(
     async (quickText) => {
-      const message = String(quickText || "").trim();
+      const message = normalizeInput(quickText);
       if (!message || !sessionId || sending) return;
       addMessage("user", message);
       setSending(true);
@@ -396,7 +403,7 @@ Shall we get started?`
         // no-op: sending already handled above
       }
     },
-    [addMessage, config.webhook.route, sending, sessionId, typeOutBotMessage]
+    [addMessage, config.webhook.route, normalizeInput, sending, sessionId, typeOutBotMessage]
   );
 
   if (!mounted) return null;
