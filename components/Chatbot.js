@@ -327,9 +327,11 @@ Shall we get started?`
   }, [addMessage, config.webhook.route, typeOutBotMessage]);
 
   const sendMessage = useCallback(async () => {
+    const display = String(input ?? "").trim();
     const message = normalizeInput(input);
     if (!message || !sessionId || sending) return;
-    addMessage("user", message);
+    // Show what the user typed (with punctuation) in UI
+    addMessage("user", display);
     setInput("");
     setSending(true);
 
@@ -367,10 +369,12 @@ Shall we get started?`
 
   // Send a pre-defined quick message using the same webhook flow
   const sendQuickMessage = useCallback(
-    async (quickText) => {
-      const message = normalizeInput(quickText);
+    async (quickText, sendText) => {
+      const display = String(quickText || "").trim();
+      const message = normalizeInput(sendText ?? quickText);
       if (!message || !sessionId || sending) return;
-      addMessage("user", message);
+      // Show the display text in UI
+      addMessage("user", display);
       setSending(true);
 
       const payload = {
