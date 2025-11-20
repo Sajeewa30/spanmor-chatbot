@@ -41,28 +41,18 @@ function renderMessageWithLinks(text, opts = {}) {
         label = match[0];
         href = match[0];
       }
-      parts.push(
-        isTyping ? (
-          // While typing: render a non-clickable span styled like a link
-          <span
-            key={`msg-link-${li}-${parts.length}`}
-            className="link-like"
-            style={{ color: "var(--chat--color-primary)", textDecoration: "underline" }}
-          >
+      // Do not render inline links; show only plain label for markdown, and hide bare URLs
+      if (match[1] && match[2]) {
+        // Markdown link: render label only (no anchor)
+        parts.push(
+          <React.Fragment key={`msg-link-${li}-${parts.length}`}>
             {label}
-          </span>
-        ) : (
-          <a
-            key={`msg-link-${li}-${parts.length}`}
-            href={href}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ color: "var(--chat--color-primary)", textDecoration: "underline" }}
-          >
-            {label}
-          </a>
-        )
-      );
+          </React.Fragment>
+        );
+      } else {
+        // Bare URL: hide from inline text
+        // no-op: do not push anything so raw URL is not visible
+      }
       lastIndex = pattern.lastIndex;
     }
 
@@ -77,6 +67,33 @@ function renderMessageWithLinks(text, opts = {}) {
       </React.Fragment>
     );
   });
+}
+
+// While typing, show a stable, plain-text view:
+// - Convert complete Markdown links [label](url) to just `label`
+// - Hide bare URLs entirely so they don't pop in/out
+// - Also collapse partially-typed Markdown links to the label
+function sanitizeTypingDisplay(text) {
+  const safe = String(text ?? "");
+  const mdComplete = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g;
+  const bareUrl = /(https?:\/\/[^\s]+)/g;
+  const mdPartial = /\[([^\]]+)\]\([^)]*$/; // until end of line
+
+  const lines = safe.split(/\n/);
+  const out = lines.map((line) => {
+    let s = line;
+    // Replace complete markdown links with their label
+    s = s.replace(mdComplete, "$1");
+    // Hide bare URLs from the typing display
+    s = s.replace(bareUrl, "");
+    // Repeatedly collapse partially-typed markdown to the label
+    let guard = 0;
+    while (mdPartial.test(s) && guard++ < 10) {
+      s = s.replace(mdPartial, "$1");
+    }
+    return s;
+  });
+  return out.join("\n");
 }
 
 // Note: Messages are rendered via ReactMarkdown with remark-gfm
@@ -132,6 +149,8 @@ export default function Chatbot({ config: userConfig }) {
   const [sending, setSending] = useState(false);
   const [hasFocus, setHasFocus] = useState(false);
   const [mounted, setMounted] = useState(false);
+  // Track which message's CTA buttons should be visible
+  const [activeCtaMessageId, setActiveCtaMessageId] = useState(null);
   // Typing speed for bot replies (milliseconds per character)
   // Adjust via `config.typingSpeedMs` when using the component.
   const typingSpeedMs = Math.max(1, Number(config?.typingSpeedMs ?? 20));
@@ -213,6 +232,69 @@ export default function Chatbot({ config: userConfig }) {
   }, []);
 
   // Typewriter effect for bot messages: streams characters over time
+  // Extract links from full text (markdown and bare URLs)
+  const extractLinks = useCallback((fullText) => {
+    const s = String(fullText || "");
+
+    const stripTrailingPunct = (u) => (u || "").trim().replace(/[\)\]\}\>\.,!?:;]+$/g, "");
+
+    const normalizeKey = (rawUrl) => {
+      try {
+        const cleaned = stripTrailingPunct(rawUrl);
+        const u = new URL(cleaned);
+        const host = (u.hostname || "").toLowerCase().replace(/^www\./, "");
+        // Remove tracking params and order query params for stable keys
+        const sp = new URLSearchParams(u.search);
+        const kept = new URLSearchParams();
+        for (const [k, v] of sp.entries()) {
+          if (!/^utm_/i.test(k) && k.toLowerCase() !== "fbclid") kept.append(k, v);
+        }
+        const query = kept.toString();
+        // Normalize path: remove trailing slash (except root)
+        let path = u.pathname || "/";
+        if (path.length > 1 && path.endsWith("/")) path = path.slice(0, -1);
+        return { key: `${host}${path}${query ? `?${query}` : ""}`, host };
+      } catch {
+        return { key: null, host: null };
+      }
+    };
+
+    const mdLinksRaw = [];
+    const bareLinksRaw = [];
+
+    // Markdown links (preferred)
+    const md = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g;
+    let m;
+    while ((m = md.exec(s)) !== null) {
+      mdLinksRaw.push({ url: m[2], label: (m[1] || "").trim() });
+    }
+
+    // Bare URLs (used only if no markdown links exist)
+    const bare = /(https?:\/\/[^\s]+)/g;
+    while ((m = bare.exec(s)) !== null) {
+      bareLinksRaw.push({ url: m[0], label: m[0] });
+    }
+
+    // Choose source: prefer markdown links when present
+    const raw = mdLinksRaw.length ? mdLinksRaw : bareLinksRaw;
+
+    // Whitelist domain and de-duplicate canonically
+    const results = [];
+    const seen = new Set();
+    for (const it of raw) {
+      const cleanedUrl = stripTrailingPunct(it.url);
+      const { key, host } = normalizeKey(cleanedUrl);
+      if (!key || !host) continue;
+      // whitelist spanmor.com.au only
+      if (host !== "spanmor.com.au") continue;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      results.push({ url: cleanedUrl, label: it.label });
+    }
+
+    return results;
+  }, []);
+
   const typeOutBotMessage = useCallback(
     (fullText) => {
       const text = String(fullText ?? "").trim();
@@ -250,7 +332,9 @@ export default function Chatbot({ config: userConfig }) {
       typingMessageIdRef.current = id;
       typingFullTextRef.current = text;
       // Create the target bot message we will progressively update
-      setMessages((prev) => [...prev, { id, role: "bot", text: "" }]);
+      // Extract links once so we can show CTAs and clickable anchors immediately
+      const links = extractLinks(text);
+      setMessages((prev) => [...prev, { id, role: "bot", text: "", links }]);
 
       let i = 0;
 
@@ -275,10 +359,12 @@ export default function Chatbot({ config: userConfig }) {
           clearInterval(typingTimerRef.current);
           typingTimerRef.current = null;
           typingMessageIdRef.current = null;
+          // Expose CTAs for this finished bot message
+          setActiveCtaMessageId(id);
         }
       }, typingSpeedMs);
     },
-    [typingSpeedMs]
+    [typingSpeedMs, extractLinks]
   );
 
   const startNewConversation = useCallback(() => {
@@ -300,6 +386,7 @@ Shall we get started?`
     const message = normalizeInput(input);
     if (!message || !sessionId || sending) return;
     // Show what the user typed (with punctuation) in UI
+    setActiveCtaMessageId(null); // hide previous CTAs when user sends a new message
     addMessage("user", display);
     setInput("");
     setSending(true);
@@ -343,6 +430,7 @@ Shall we get started?`
       const message = normalizeInput(sendText ?? quickText);
       if (!message || !sessionId || sending) return;
       // Show the display text in UI
+      setActiveCtaMessageId(null); // hide previous CTAs on new quick send
       addMessage("user", display);
       setSending(true);
 
@@ -444,20 +532,88 @@ Shall we get started?`
               />
             </div>
             <div className="chat-messages" ref={messagesRef}>
-              {messages.map((m, i) => (
-                <div
-                  key={m.id || i}
-                  className={`chat-message ${m.role}`}
-                  ref={i === messages.length - 1 && m.role === "bot" ? lastBotRef : null}
-                  style={{ whiteSpace: "pre-wrap" }}
-                >
-                  {renderMessageWithLinks(m.text, {
-                    isTyping:
-                      Boolean(typingTimerRef.current) &&
-                      m.id === typingMessageIdRef.current,
-                  })}
-                </div>
-              ))}
+              {messages.map((m, i) => {
+                const isTypingMsg = Boolean(typingTimerRef.current) && m.id === typingMessageIdRef.current;
+                const isLastBot = i === messages.length - 1 && m.role === "bot";
+
+                // Build CTA(s) attached to this message (after typing completes)
+                let cta = null;
+                if (
+                  m.role === "bot" &&
+                  m.links &&
+                  m.links.length &&
+                  !isTypingMsg &&
+                  m.id === activeCtaMessageId
+                ) {
+                  const createLabel = (lnk) => {
+                    const cleanText = (t) => t
+                      .replace(/[\)\]\}\>\.,!?:;]+$/g, "") // strip trailing punctuation
+                      .replace(/^\s*(the|a|an)\s+/i, "") // drop leading articles
+                      .replace(/\b(page|webpage|site)\b/gi, "") // drop generic words
+                      .replace(/\s{2,}/g, " ")
+                      .trim();
+
+                    const raw = cleanText(String(lnk.label || ""));
+                    const looksLikeUrlish = /https?:|:\/\//i.test(raw) || /\//.test(raw) || /\.[a-z]{2,}$/i.test(raw);
+                    if (raw && raw !== lnk.url && !looksLikeUrlish) {
+                      const title = raw.replace(/\b\w/g, (c) => c.toUpperCase());
+                      return `Open ${title}`;
+                    }
+                    try {
+                      const u = new URL(lnk.url);
+                      const host = (u.hostname || "").replace(/^www\./, "");
+                      const path = (u.pathname || "/");
+                      const segs = path.split("/").filter(Boolean);
+                      if (segs.length === 0) {
+                        // homepage: use site name from host
+                        const site = host.split(".")[0] || host;
+                        const title = site.charAt(0).toUpperCase() + site.slice(1);
+                        return `Open ${title}`;
+                      }
+                      const last = cleanText(decodeURIComponent(segs[segs.length - 1])
+                        .replace(/[\-_]+/g, " ")
+                        .replace(/\s+/g, " "));
+                      const title = last.replace(/\b\w/g, (c) => c.toUpperCase());
+                      return `Open ${title}`;
+                    } catch (_) {
+                      return "Open Link";
+                    }
+                  };
+
+                  cta = (
+                    <div className="message-actions">
+                      {m.links.map((lnk, idx) => (
+                        <button
+                          key={`cta-${m.id || i}-${idx}`}
+                          type="button"
+                          className="link-action"
+                          onClick={() => window.open(lnk.url, "_blank", "noopener,noreferrer")}
+                          aria-label={createLabel(lnk)}
+                          title={lnk.url}
+                        >
+                          {createLabel(lnk)}
+                        </button>
+                      ))}
+                    </div>
+                  );
+                }
+
+                return (
+                  <React.Fragment key={m.id || i}>
+                    <div
+                      className={`chat-message ${m.role}`}
+                      ref={isLastBot ? lastBotRef : null}
+                      style={{ whiteSpace: "pre-wrap" }}
+                    >
+                      {/* While typing: stable, sanitized plain text (no links visible) */}
+                      {isTypingMsg
+                        ? sanitizeTypingDisplay(m.text)
+                        : renderMessageWithLinks(m.text, { isTyping: false })}
+                    </div>
+                    {cta}
+                  </React.Fragment>
+                );
+              })}
               {/* User typing indicator */}
               {hasFocus && !sending && input && (
                 <div className="chat-message user typing-indicator">
@@ -862,6 +1018,30 @@ Shall we get started?`
         }
 
         .n8n-chat-widget .chat-footer a:hover { opacity: 1; }
+
+        /* Message CTA buttons for links */
+        .n8n-chat-widget .message-actions {
+          padding: 0 16px 12px 16px;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+        }
+
+        .n8n-chat-widget .link-action {
+          background: linear-gradient(135deg, var(--chat--color-primary) 0%, var(--chat--color-secondary) 100%);
+          color: #fff;
+          border: none;
+          border-radius: 6px;
+          padding: 8px 12px;
+          cursor: pointer;
+          font-size: 13px;
+          font-weight: 500;
+          font-family: inherit;
+        }
+
+        .n8n-chat-widget .link-action:hover {
+          filter: brightness(1.05);
+        }
       `}</style>
     </div>
   );
