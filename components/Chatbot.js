@@ -149,8 +149,7 @@ export default function Chatbot({ config: userConfig }) {
   const [sending, setSending] = useState(false);
   const [hasFocus, setHasFocus] = useState(false);
   const [mounted, setMounted] = useState(false);
-  // Track which message's CTA buttons should be visible
-  const [activeCtaMessageId, setActiveCtaMessageId] = useState(null);
+  // CTAs persist per message; no global active gating
   // Typing speed for bot replies (milliseconds per character)
   // Adjust via `config.typingSpeedMs` when using the component.
   const typingSpeedMs = Math.max(1, Number(config?.typingSpeedMs ?? 20));
@@ -275,18 +274,37 @@ export default function Chatbot({ config: userConfig }) {
       bareLinksRaw.push({ url: m[0], label: m[0] });
     }
 
-    // Choose source: prefer markdown links when present
-    const raw = mdLinksRaw.length ? mdLinksRaw : bareLinksRaw;
+    // Choose source: prefer markdown links, but also include important bare URLs
+    const raw = [];
+    if (mdLinksRaw.length) {
+      // Start with explicit markdown links
+      raw.push(...mdLinksRaw);
+      // Also include bare URLs from allowed domains that are likely task links
+      // Heuristics: has query string OR path depth > 1
+      for (const it of bareLinksRaw) {
+        try {
+          const u = new URL(stripTrailingPunct(it.url));
+          const host = (u.hostname || "").toLowerCase();
+          const allowedHost = host === "spanmor.com.au" || host.endsWith(".spanmor.com.au");
+          const pathDepth = (u.pathname || "/").split("/").filter(Boolean).length;
+          if (allowedHost && (u.search || pathDepth > 1)) {
+            raw.push(it);
+          }
+        } catch { /* ignore */ }
+      }
+    } else {
+      raw.push(...bareLinksRaw);
+    }
 
-    // Whitelist domain and de-duplicate canonically
+    // Whitelist domain (spanmor.com.au and subdomains) and de-duplicate canonically
     const results = [];
     const seen = new Set();
     for (const it of raw) {
       const cleanedUrl = stripTrailingPunct(it.url);
       const { key, host } = normalizeKey(cleanedUrl);
       if (!key || !host) continue;
-      // whitelist spanmor.com.au only
-      if (host !== "spanmor.com.au") continue;
+      const allowedHost = host === "spanmor.com.au" || host.endsWith(".spanmor.com.au");
+      if (!allowedHost) continue;
       if (seen.has(key)) continue;
       seen.add(key);
       results.push({ url: cleanedUrl, label: it.label });
@@ -359,8 +377,7 @@ export default function Chatbot({ config: userConfig }) {
           clearInterval(typingTimerRef.current);
           typingTimerRef.current = null;
           typingMessageIdRef.current = null;
-          // Expose CTAs for this finished bot message
-          setActiveCtaMessageId(id);
+          // Bot message finished typing; CTAs render based on message state
         }
       }, typingSpeedMs);
     },
@@ -386,7 +403,6 @@ Shall we get started?`
     const message = normalizeInput(input);
     if (!message || !sessionId || sending) return;
     // Show what the user typed (with punctuation) in UI
-    setActiveCtaMessageId(null); // hide previous CTAs when user sends a new message
     addMessage("user", display);
     setInput("");
     setSending(true);
@@ -430,7 +446,6 @@ Shall we get started?`
       const message = normalizeInput(sendText ?? quickText);
       if (!message || !sessionId || sending) return;
       // Show the display text in UI
-      setActiveCtaMessageId(null); // hide previous CTAs on new quick send
       addMessage("user", display);
       setSending(true);
 
@@ -540,10 +555,9 @@ Shall we get started?`
                 let cta = null;
                 if (
                   m.role === "bot" &&
-                  m.links &&
-                  m.links.length &&
-                  !isTypingMsg &&
-                  m.id === activeCtaMessageId
+                  Array.isArray(m.links) &&
+                  m.links.length > 0 &&
+                  !isTypingMsg
                 ) {
                   const createLabel = (lnk) => {
                     const cleanText = (t) => t
