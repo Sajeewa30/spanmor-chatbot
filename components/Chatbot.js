@@ -732,10 +732,12 @@ Shall we get started?`
       </button>
 
       {/* Styles ported from the original widget */}
-      <style jsx global>{`
+      <style jsx>{`
         .n8n-chat-widget {
           --chat--color-primary: var(--n8n-chat-primary-color, #854fff);
           --chat--color-secondary: var(--n8n-chat-secondary-color, #6b3fd4);
+          /* User message bubble color (more subtle, soft black). You can override via --n8n-chat-user-color on the container if needed. */
+          --chat--color-user: var(--n8n-chat-user-color, #1A1A1A);
           --chat--color-background: var(--n8n-chat-background-color, #ffffff);
           --chat--color-font: var(--n8n-chat-font-color, #333333);
           font-family: var(--font-geist-sans, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif);
@@ -878,10 +880,10 @@ Shall we get started?`
         }
 
         .n8n-chat-widget .chat-message.user {
-          background: linear-gradient(135deg, var(--chat--color-primary) 0%, var(--chat--color-secondary) 100%);
-          color: white;
+          background: var(--chat--color-user);
+          color: #ffffff;
           align-self: flex-end;
-          box-shadow: 0 4px 12px rgba(133, 79, 255, 0.2);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
           border: none;
         }
 
