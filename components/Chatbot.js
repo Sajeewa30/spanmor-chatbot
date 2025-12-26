@@ -527,7 +527,7 @@ Shall we get started?`
         className={`chat-container${open ? " open" : ""}${positionLeft ? " position-left" : ""}`}
         ref={containerRef}
         style={{
-          display: open ? "flex" : "none",
+          display: "flex",
           ...(isMobile
             ? {
                 top: 0,
@@ -830,7 +830,8 @@ Shall we get started?`
           bottom: 24px;
           right: 24px;
           z-index: 1000;
-          display: none;
+          display: flex;
+          flex-direction: column;
           width: 420px;
           height: 640px;
           background: var(--chat--color-background);
@@ -840,6 +841,10 @@ Shall we get started?`
           overflow-y: auto;
           overflow-x: hidden;
           font-family: inherit;
+          opacity: 0;
+          transform: translateY(12px) scale(0.98);
+          pointer-events: none;
+          transition: opacity 0.25s ease, transform 0.25s ease;
         }
 
         .n8n-chat-widget .chat-container.position-left {
@@ -848,8 +853,10 @@ Shall we get started?`
         }
 
         .n8n-chat-widget .chat-container.open {
-          display: flex;
-          flex-direction: column;
+          opacity: 1;
+          transform: translateY(0) scale(1);
+          pointer-events: auto;
+          animation: chat-pop 0.28s ease;
         }
 
         .n8n-chat-widget .chat-shell {
@@ -1067,6 +1074,12 @@ Shall we get started?`
           40% { opacity: 1; }
         }
 
+        @keyframes chat-pop {
+          0% { opacity: 0; transform: translateY(12px) scale(0.98); }
+          60% { opacity: 1; transform: translateY(-2px) scale(1.01); }
+          100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
         .n8n-chat-widget .chat-input {
           padding: 16px;
           background: var(--chat--color-background);
@@ -1216,6 +1229,11 @@ Shall we get started?`
             box-shadow: none;
             transform: none;
             overflow-y: auto;
+          }
+
+          .n8n-chat-widget .chat-container.open {
+            transform: translateY(0) scale(1);
+            animation: chat-pop 0.28s ease;
           }
 
           .n8n-chat-widget .chat-shell {
