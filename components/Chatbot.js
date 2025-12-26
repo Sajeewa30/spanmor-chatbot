@@ -561,16 +561,35 @@ Shall we get started?`
                 <span aria-hidden="true">×</span>
               </button>
             </div>
-            <div
-              className="new-conversation"
-              style={isMobile ? { padding: "6px 8px", borderRadius: 10 } : undefined}
-            >
+            <div className="welcome-wrapper">
+              <div
+                className="new-conversation"
+                style={isMobile ? { padding: "6px 8px", borderRadius: 10 } : undefined}
+              >
               <h2
                 className="welcome-text"
                 style={isMobile ? { fontSize: 13, marginBottom: 2 } : undefined}
               >
                 {config.branding.welcomeText}
               </h2>
+              <p className="welcome-subtext">
+                Get a fast, accurate deck quote with a guided setup. We can help you
+                plan dimensions, materials, and finishes in minutes.
+              </p>
+              <div className="welcome-highlights">
+                <div className="welcome-highlight">
+                  <span className="welcome-badge">5 min</span>
+                  <span className="welcome-label">Quick quote</span>
+                </div>
+                <div className="welcome-highlight">
+                  <span className="welcome-badge">Live</span>
+                  <span className="welcome-label">Price preview</span>
+                </div>
+                <div className="welcome-highlight">
+                  <span className="welcome-badge">PDF</span>
+                  <span className="welcome-label">Shareable plan</span>
+                </div>
+              </div>
               <button className="new-chat-btn" onClick={startNewConversation}>
                 <svg
                   className="message-icon"
@@ -590,6 +609,7 @@ Shall we get started?`
               >
                 {config.branding.responseTimeText}
               </p>
+              </div>
             </div>
           </>
         )}
@@ -879,24 +899,77 @@ Shall we get started?`
         
 
         .n8n-chat-widget .new-conversation {
-          padding: 20px;
+          padding: 18px;
           text-align: center;
           width: 100%;
-          max-width: 300px;
-          margin: 0 auto;
+          max-width: 320px;
+          margin: 12px auto 20px;
           display: flex;
           flex-direction: column;
           align-items: center;
           justify-content: center;
+          gap: 10px;
+          background: #f7f7f8;
+          border: 1px solid rgba(0, 0, 0, 0.06);
+          border-radius: 16px;
+          box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
           flex: 1;
         }
 
+        .n8n-chat-widget .welcome-wrapper {
+          flex: 1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
         .n8n-chat-widget .welcome-text {
-          font-size: 24px;
+          font-size: 20px;
           font-weight: 600;
           color: var(--chat--color-font);
-          margin-bottom: 24px;
+          margin: 0;
           line-height: 1.3;
+        }
+
+        .n8n-chat-widget .welcome-subtext {
+          font-size: 13px;
+          color: var(--chat--color-font);
+          opacity: 0.8;
+          margin: 2px 0 8px;
+          line-height: 1.4;
+        }
+
+        .n8n-chat-widget .welcome-highlights {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 8px;
+          width: 100%;
+          margin-bottom: 6px;
+        }
+
+        .n8n-chat-widget .welcome-highlight {
+          background: #ffffff;
+          border: 1px solid rgba(0, 0, 0, 0.06);
+          border-radius: 10px;
+          padding: 8px 6px;
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .n8n-chat-widget .welcome-badge {
+          font-size: 12px;
+          font-weight: 700;
+          color: var(--chat--color-primary);
+        }
+
+        .n8n-chat-widget .welcome-label {
+          font-size: 11px;
+          color: var(--chat--color-font);
+          opacity: 0.8;
+          text-align: center;
         }
 
         .n8n-chat-widget .new-chat-btn {
@@ -905,16 +978,16 @@ Shall we get started?`
           justify-content: center;
           gap: 8px;
           width: 100%;
-          padding: 16px 24px;
+          padding: 14px 18px;
           background: linear-gradient(135deg, var(--chat--color-primary) 0%, var(--chat--color-secondary) 100%);
           color: white;
           border: none;
-          border-radius: 8px;
+          border-radius: 10px;
           cursor: pointer;
           transition: transform 0.3s;
           font-weight: 500;
           font-family: inherit;
-          margin-bottom: 12px;
+          margin: 2px 0 0;
         }
 
         .n8n-chat-widget .new-chat-btn:hover { transform: scale(1.02); }
@@ -1157,6 +1230,14 @@ Shall we get started?`
           .n8n-chat-widget .welcome-text {
             font-size: 13px;
             margin-bottom: 2px;
+          }
+
+          .n8n-chat-widget .welcome-subtext {
+            font-size: 11px;
+          }
+
+          .n8n-chat-widget .welcome-highlights {
+            grid-template-columns: 1fr;
           }
 
           .n8n-chat-widget .response-text {

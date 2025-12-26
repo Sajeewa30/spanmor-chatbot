@@ -9,8 +9,8 @@ export default function Home() {
     branding: {
       logo: '/logo.svg', // Optional: add your logo URL
       name: 'Spanmor.au',
-      welcomeText: 'Hi 👋, How can we help?',
-      responseTimeText: 'We typically respond right away',
+      welcomeText: 'Hi, How can we help?',
+      responseTimeText: 'We usually reply within a few minutes',
     },
     style: {
       // Spanmor accurate red
