@@ -557,7 +557,9 @@ Shall we get started?`
                 className="close-button"
                 aria-label="Close"
                 onClick={() => setOpen(false)}
-              />
+              >
+                <span aria-hidden="true">×</span>
+              </button>
             </div>
             <div
               className="new-conversation"
@@ -603,7 +605,9 @@ Shall we get started?`
                 className="close-button"
                 aria-label="Close"
                 onClick={() => setOpen(false)}
-              />
+              >
+                <span aria-hidden="true">×</span>
+              </button>
             </div>
             <div className="chat-messages" ref={messagesRef}>
               {messages.map((m, i) => {
@@ -1164,6 +1168,7 @@ Shall we get started?`
             bottom: 16px;
             right: 16px;
           }
+
         }
 
         @media (min-width: 641px) and (max-height: 700px) {
