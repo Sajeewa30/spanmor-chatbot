@@ -836,7 +836,7 @@ Shall we get started?`
           background: var(--chat--color-background);
           border-radius: 28px;
           box-shadow: 0 8px 32px rgba(133, 79, 255, 0.15);
-          border: 1px solid rgba(133, 79, 255, 0.2);
+          border: 2px solid var(--chat--color-primary);
           overflow-y: auto;
           overflow-x: hidden;
           font-family: inherit;
