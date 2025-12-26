@@ -879,14 +879,16 @@ Shall we get started?`
         
 
         .n8n-chat-widget .new-conversation {
-          position: absolute;
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
           padding: 20px;
           text-align: center;
           width: 100%;
           max-width: 300px;
+          margin: 0 auto;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          flex: 1;
         }
 
         .n8n-chat-widget .welcome-text {
