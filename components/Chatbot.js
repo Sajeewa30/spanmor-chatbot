@@ -149,6 +149,7 @@ export default function Chatbot({ config: userConfig }) {
   const [sending, setSending] = useState(false);
   const [hasFocus, setHasFocus] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   // CTAs persist per message; no global active gating
   // Typing speed for bot replies (milliseconds per character)
   // Adjust via `config.typingSpeedMs` when using the component.
@@ -162,6 +163,7 @@ export default function Chatbot({ config: userConfig }) {
   // Refs for scrolling behavior
   const messagesRef = useRef(null);
   const lastBotRef = useRef(null);
+  const scrollRafRef = useRef(null);
   // Interval reference for the typewriter effect
   const typingTimerRef = useRef(null);
   // Track which bot message is currently being typed (by id)
@@ -188,6 +190,20 @@ export default function Chatbot({ config: userConfig }) {
     setMounted(true);
   }, []);
 
+  // Track mobile layout for inline overrides
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mq = window.matchMedia("(max-width: 640px)");
+    const update = () => setIsMobile(mq.matches);
+    update();
+    if (mq.addEventListener) mq.addEventListener("change", update);
+    else mq.addListener(update);
+    return () => {
+      if (mq.removeEventListener) mq.removeEventListener("change", update);
+      else mq.removeListener(update);
+    };
+  }, []);
+
   // Clear any running typing interval on unmount
   useEffect(() => {
     return () => {
@@ -195,7 +211,21 @@ export default function Chatbot({ config: userConfig }) {
         clearInterval(typingTimerRef.current);
         typingTimerRef.current = null;
       }
+      if (scrollRafRef.current) {
+        cancelAnimationFrame(scrollRafRef.current);
+        scrollRafRef.current = null;
+      }
     };
+  }, []);
+
+  const scheduleScrollToBottom = useCallback(() => {
+    const container = messagesRef.current;
+    if (!container) return;
+    if (scrollRafRef.current) return;
+    scrollRafRef.current = requestAnimationFrame(() => {
+      scrollRafRef.current = null;
+      container.scrollTop = container.scrollHeight;
+    });
   }, []);
 
   // Auto-scroll behavior: user → bottom, bot → start of reply
@@ -206,24 +236,23 @@ export default function Chatbot({ config: userConfig }) {
     const last = messages[messages.length - 1];
     if (last.role === "user") {
       // Scroll to bottom so the sent message is visible
-      container.scrollTop = container.scrollHeight;
+      scheduleScrollToBottom();
     } else {
       // Align to the top of the new bot reply
       if (lastBotRef.current) {
-        lastBotRef.current.scrollIntoView({ block: "start", behavior: "smooth" });
+        lastBotRef.current.scrollIntoView({ block: "start", behavior: "auto" });
       } else {
         // Fallback: near-bottom
-        container.scrollTop = container.scrollHeight;
+        scheduleScrollToBottom();
       }
     }
-  }, [messages]);
+  }, [messages, scheduleScrollToBottom]);
 
   // Ensure typing indicator stays visible by keeping view scrolled
   useEffect(() => {
     if (!sending) return;
-    const container = messagesRef.current;
-    if (container) container.scrollTop = container.scrollHeight;
-  }, [sending]);
+    scheduleScrollToBottom();
+  }, [sending, scheduleScrollToBottom]);
 
   const addMessage = useCallback((role, text) => {
     const id = crypto.randomUUID();
@@ -370,8 +399,7 @@ export default function Chatbot({ config: userConfig }) {
         });
 
         // Keep the latest content visible as it grows
-        const container = messagesRef.current;
-        if (container) container.scrollTop = container.scrollHeight;
+        scheduleScrollToBottom();
 
         if (i >= len) {
           clearInterval(typingTimerRef.current);
@@ -381,7 +409,7 @@ export default function Chatbot({ config: userConfig }) {
         }
       }, typingSpeedMs);
     },
-    [typingSpeedMs, extractLinks]
+    [typingSpeedMs, extractLinks, scheduleScrollToBottom]
   );
 
   const startNewConversation = useCallback(() => {
@@ -495,11 +523,29 @@ Shall we get started?`
         ["--n8n-chat-font-color"]: config.style.fontColor,
       }}
     >
-        <div
-          className={`chat-container${open ? " open" : ""}${positionLeft ? " position-left" : ""}`}
-          ref={containerRef}
-          style={{ display: open ? "flex" : "none" }}
-        >
+      <div
+        className={`chat-container${open ? " open" : ""}${positionLeft ? " position-left" : ""}`}
+        ref={containerRef}
+        style={{
+          display: open ? "flex" : "none",
+          ...(isMobile
+            ? {
+                top: 0,
+                right: 0,
+                bottom: 0,
+                left: 0,
+                width: "100%",
+                height: "100%",
+                maxWidth: "100vw",
+                maxHeight: "100dvh",
+                borderRadius: 0,
+                boxShadow: "none",
+                overflowY: "auto",
+              }
+            : null),
+        }}
+      >
+        <div className="chat-shell">
         {/* Welcome/new conversation view */}
         {!started && (
           <>
@@ -513,8 +559,16 @@ Shall we get started?`
                 onClick={() => setOpen(false)}
               />
             </div>
-            <div className="new-conversation">
-              <h2 className="welcome-text">{config.branding.welcomeText}</h2>
+            <div
+              className="new-conversation"
+              style={isMobile ? { padding: "6px 8px", borderRadius: 10 } : undefined}
+            >
+              <h2
+                className="welcome-text"
+                style={isMobile ? { fontSize: 13, marginBottom: 2 } : undefined}
+              >
+                {config.branding.welcomeText}
+              </h2>
               <button className="new-chat-btn" onClick={startNewConversation}>
                 <svg
                   className="message-icon"
@@ -528,7 +582,12 @@ Shall we get started?`
                 </svg>
                 Send us a message
               </button>
-              <p className="response-text">{config.branding.responseTimeText}</p>
+              <p
+                className="response-text"
+                style={isMobile ? { fontSize: 11 } : undefined}
+              >
+                {config.branding.responseTimeText}
+              </p>
             </div>
           </>
         )}
@@ -660,38 +719,36 @@ Shall we get started?`
               {sending ? "Sending..." : "Send"}
             </button>
           </div>
-          {/* Initial quick-start options */}
-          {messages.filter((m) => m.role === "user").length === 0 && (
-            <div className="quick-replies">
-              <button
-                type="button"
-                className="quick-reply"
-                disabled={sending}
-                onClick={() => sendQuickMessage("I need to start a quote with my deck size")}
-                aria-label="I need to start a quote with my deck size"
-              >
-                I need to start a quote with my deck size
-              </button>
-              <button
-                type="button"
-                className="quick-reply"
-                disabled={sending}
-                onClick={() => sendQuickMessage("I Want to know about Spanmor")}
-                aria-label="I Want to know about Spanmor"
-              >
-                I Want to know about Spanmor
-              </button>
-              <button
-                type="button"
-                className="quick-reply"
-                disabled={sending}
-                onClick={() => sendQuickMessage("I need engineering expert assistance")}
-                aria-label="I need engineering expert review - Send an Email"
-              >
-                I need engineering expert review - Send an Email
-              </button>
-            </div>
-          )}
+          {/* Quick-start options (always available) */}
+          <div className="quick-replies">
+            <button
+              type="button"
+              className="quick-reply"
+              disabled={sending}
+              onClick={() => sendQuickMessage("I need to start a quote with my deck size")}
+              aria-label="I need to start a quote with my deck size"
+            >
+              I need to start a quote with my deck size
+            </button>
+            <button
+              type="button"
+              className="quick-reply"
+              disabled={sending}
+              onClick={() => sendQuickMessage("I Want to know about Spanmor")}
+              aria-label="I Want to know about Spanmor"
+            >
+              I Want to know about Spanmor
+            </button>
+            <button
+              type="button"
+              className="quick-reply"
+              disabled={sending}
+              onClick={() => sendQuickMessage("I need engineering expert assistance")}
+              aria-label="I need engineering expert review - Send an Email"
+            >
+              I need engineering expert review - Send an Email
+            </button>
+          </div>
           <div className="chat-footer">
             <a href={config.branding.poweredBy.link} target="_blank">
               {config.branding.poweredBy.text}
@@ -699,6 +756,7 @@ Shall we get started?`
           </div>
           </div>
         )}
+        </div>
       </div>
 
       {/* Floating toggle */}
@@ -710,12 +768,12 @@ Shall we get started?`
         aria-label="Open chat"
         style={{
           position: "fixed",
-          bottom: 20,
-          right: positionLeft ? "auto" : 20,
-          left: positionLeft ? 20 : "auto",
-          width: 60,
-          height: 60,
-          borderRadius: 30,
+          bottom: isMobile ? 16 : 20,
+          right: positionLeft ? "auto" : isMobile ? 16 : 20,
+          left: positionLeft ? (isMobile ? 16 : 20) : "auto",
+          width: isMobile ? 56 : 60,
+          height: isMobile ? 56 : 60,
+          borderRadius: isMobile ? 20 : 30,
           zIndex: 999,
           background: `linear-gradient(135deg, ${config.style.primaryColor} 0%, ${config.style.secondaryColor} 100%)`,
           color: "white",
@@ -745,17 +803,18 @@ Shall we get started?`
 
         .n8n-chat-widget .chat-container {
           position: fixed;
-          bottom: 20px;
-          right: 20px;
+          bottom: 24px;
+          right: 24px;
           z-index: 1000;
           display: none;
-          width: 380px;
-          height: 650px;
+          width: 420px;
+          height: 640px;
           background: var(--chat--color-background);
-          border-radius: 12px;
+          border-radius: 28px;
           box-shadow: 0 8px 32px rgba(133, 79, 255, 0.15);
           border: 1px solid rgba(133, 79, 255, 0.2);
-          overflow: hidden;
+          overflow-y: auto;
+          overflow-x: hidden;
           font-family: inherit;
         }
 
@@ -767,6 +826,13 @@ Shall we get started?`
         .n8n-chat-widget .chat-container.open {
           display: flex;
           flex-direction: column;
+        }
+
+        .n8n-chat-widget .chat-shell {
+          display: flex;
+          flex-direction: column;
+          min-height: 100%;
+          height: 100%;
         }
 
         .n8n-chat-widget .brand-header {
@@ -1057,6 +1123,65 @@ Shall we get started?`
 
         .n8n-chat-widget .link-action:hover {
           filter: brightness(1.05);
+        }
+
+        @media (max-width: 640px) {
+          .n8n-chat-widget .chat-container {
+            inset: 0;
+            margin: 0;
+            width: 100%;
+            max-width: 100vw;
+            height: 100%;
+            max-height: 100dvh;
+            border-radius: 0;
+            box-shadow: none;
+            transform: none;
+            overflow-y: auto;
+          }
+
+          .n8n-chat-widget .chat-shell {
+            min-height: 100%;
+            padding: calc(16px + env(safe-area-inset-top))
+              calc(16px + env(safe-area-inset-right))
+              calc(16px + env(safe-area-inset-bottom))
+              calc(16px + env(safe-area-inset-left));
+            gap: 12px;
+          }
+
+          .n8n-chat-widget .welcome-text {
+            font-size: 13px;
+            margin-bottom: 2px;
+          }
+
+          .n8n-chat-widget .response-text {
+            font-size: 11px;
+          }
+
+          .n8n-chat-widget .chat-toggle {
+            width: 56px;
+            height: 56px;
+            border-radius: 20px;
+            bottom: 16px;
+            right: 16px;
+          }
+        }
+
+        @media (min-width: 641px) and (max-height: 700px) {
+          .n8n-chat-widget .chat-container {
+            top: 16px;
+            bottom: 16px;
+            height: auto;
+            max-height: calc(100vh - 32px);
+          }
+
+          .n8n-chat-widget .chat-shell {
+            min-height: max-content;
+          }
+
+          .n8n-chat-widget .chat-messages {
+            height: clamp(200px, 40vh, 360px);
+            flex: 0 0 auto;
+          }
         }
       `}</style>
     </div>
