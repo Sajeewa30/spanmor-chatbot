@@ -119,6 +119,10 @@ const defaultConfig = {
     backgroundColor: "#ffffff",
     fontColor: "#333333",
   },
+  audio: {
+    sendVolume: 0.2,
+    receiveVolume: 0.1,
+  },
 };
 
 export default function Chatbot({ config: userConfig }) {
@@ -134,6 +138,7 @@ export default function Chatbot({ config: userConfig }) {
       webhook: { ...defaultConfig.webhook, ...(userConfig?.webhook || {}) },
       branding: { ...defaultConfig.branding, ...(userConfig?.branding || {}) },
       style: { ...defaultConfig.style, ...(userConfig?.style || {}) },
+      audio: { ...defaultConfig.audio, ...(userConfig?.audio || {}) },
       typingSpeedMs: Number(
         userConfig?.typingSpeedMs ?? defaultConfig.typingSpeedMs
       ),
@@ -164,6 +169,8 @@ export default function Chatbot({ config: userConfig }) {
   const messagesRef = useRef(null);
   const lastBotRef = useRef(null);
   const scrollRafRef = useRef(null);
+  const sendAudioRef = useRef(null);
+  const receiveAudioRef = useRef(null);
   // Interval reference for the typewriter effect
   const typingTimerRef = useRef(null);
   // Track which bot message is currently being typed (by id)
@@ -259,6 +266,39 @@ export default function Chatbot({ config: userConfig }) {
     if (!hasFocus || sending || !input) return;
     scheduleScrollToBottom();
   }, [hasFocus, sending, input, scheduleScrollToBottom]);
+
+  const legacyVolume = Number(config?.audio?.volume);
+  const sendVolumeRaw = Number.isFinite(legacyVolume)
+    ? legacyVolume
+    : Number(config?.audio?.sendVolume);
+  const receiveVolumeRaw = Number.isFinite(legacyVolume)
+    ? legacyVolume
+    : Number(config?.audio?.receiveVolume);
+  const sendVolume = Math.min(
+    1,
+    Math.max(0, Number.isFinite(sendVolumeRaw) ? sendVolumeRaw : 0.4)
+  );
+  const receiveVolume = Math.min(
+    1,
+    Math.max(0, Number.isFinite(receiveVolumeRaw) ? receiveVolumeRaw : 0.4)
+  );
+
+  const playSound = useCallback(
+    (type) => {
+      const audio = type === "send" ? sendAudioRef.current : receiveAudioRef.current;
+      if (!audio) return;
+      try {
+        if (type === "send") audio.volume = sendVolume;
+        else audio.volume = receiveVolume;
+        audio.currentTime = 0;
+        const res = audio.play();
+        if (res && typeof res.catch === "function") res.catch(() => {});
+      } catch {
+        // no-op
+      }
+    },
+    [sendVolume, receiveVolume]
+  );
 
   const addMessage = useCallback((role, text) => {
     const id = crypto.randomUUID();
@@ -411,11 +451,12 @@ export default function Chatbot({ config: userConfig }) {
           clearInterval(typingTimerRef.current);
           typingTimerRef.current = null;
           typingMessageIdRef.current = null;
+          playSound("receive");
           // Bot message finished typing; CTAs render based on message state
         }
       }, typingSpeedMs);
     },
-    [typingSpeedMs, extractLinks, scheduleScrollToBottom]
+    [typingSpeedMs, extractLinks, scheduleScrollToBottom, playSound]
   );
 
   const startNewConversation = useCallback(() => {
@@ -438,6 +479,7 @@ Shall we get started?`
     if (!message || !sessionId || sending) return;
     // Show what the user typed (with punctuation) in UI
     addMessage("user", display);
+    playSound("send");
     setInput("");
     setSending(true);
 
@@ -481,6 +523,7 @@ Shall we get started?`
       if (!message || !sessionId || sending) return;
       // Show the display text in UI
       addMessage("user", display);
+      playSound("send");
       setSending(true);
 
       const payload = {
@@ -513,7 +556,7 @@ Shall we get started?`
         // no-op: sending already handled above
       }
     },
-    [addMessage, config.webhook.route, normalizeInput, sending, sessionId, typeOutBotMessage]
+    [addMessage, config.webhook.route, normalizeInput, sending, sessionId, typeOutBotMessage, playSound]
   );
 
   if (!mounted) return null;
@@ -529,6 +572,8 @@ Shall we get started?`
         ["--n8n-chat-font-color"]: config.style.fontColor,
       }}
     >
+      <audio ref={sendAudioRef} src="/send.mp3" preload="auto" />
+      <audio ref={receiveAudioRef} src="/recieve.mp3" preload="auto" />
       <div
         className={`chat-container${open ? " open" : ""}${positionLeft ? " position-left" : ""}`}
         ref={containerRef}
