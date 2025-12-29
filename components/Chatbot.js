@@ -254,6 +254,12 @@ export default function Chatbot({ config: userConfig }) {
     scheduleScrollToBottom();
   }, [sending, scheduleScrollToBottom]);
 
+  // Keep the user typing indicator visible while typing
+  useEffect(() => {
+    if (!hasFocus || sending || !input) return;
+    scheduleScrollToBottom();
+  }, [hasFocus, sending, input, scheduleScrollToBottom]);
+
   const addMessage = useCallback((role, text) => {
     const id = crypto.randomUUID();
     setMessages((prev) => [...prev, { id, role, text }]);
