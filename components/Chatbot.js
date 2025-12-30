@@ -172,6 +172,7 @@ export default function Chatbot({ config: userConfig }) {
   const scrollRafRef = useRef(null);
   const sendAudioRef = useRef(null);
   const receiveAudioRef = useRef(null);
+  const audioUnlockedRef = useRef(false);
   // Interval reference for the typewriter effect
   const typingTimerRef = useRef(null);
   // Track which bot message is currently being typed (by id)
@@ -294,6 +295,31 @@ export default function Chatbot({ config: userConfig }) {
     1,
     Math.max(0, Number.isFinite(receiveVolumeRaw) ? receiveVolumeRaw : 0.4)
   );
+
+  const unlockAudio = useCallback(() => {
+    if (audioUnlockedRef.current) return;
+    const audios = [sendAudioRef.current, receiveAudioRef.current].filter(Boolean);
+    if (!audios.length) return;
+    audioUnlockedRef.current = true;
+    audios.forEach((audio) => {
+      try {
+        audio.volume = 0;
+        audio.currentTime = 0;
+        const res = audio.play();
+        if (res && typeof res.then === "function") {
+          res.then(() => {
+            audio.pause();
+            audio.currentTime = 0;
+          }).catch(() => {});
+        } else {
+          audio.pause();
+          audio.currentTime = 0;
+        }
+      } catch {
+        // no-op
+      }
+    });
+  }, []);
 
   const playSound = useCallback(
     (type) => {
@@ -472,6 +498,7 @@ export default function Chatbot({ config: userConfig }) {
   );
 
   const startNewConversation = useCallback(() => {
+    unlockAudio();
     // Open UI and immediately show the fixed local welcome message
     const id = crypto.randomUUID();
     setSessionId(id);
@@ -481,12 +508,13 @@ export default function Chatbot({ config: userConfig }) {
       `Hi there! Welcome to Spanmor. I'm here to help you plan your deck and get a quick, accurate quote.
 Our Deck Calculator allows you to design, price, and customise your deck in under 5 minutes. You can see a visual layout preview, get real-time pricing, and download a PDF of your design and quote.`
     );
-  }, [typeOutBotMessage]);
+  }, [typeOutBotMessage, unlockAudio]);
 
   const sendMessage = useCallback(async () => {
     const display = String(input ?? "").trim();
     const message = normalizeInput(input);
     if (!message || !sessionId || sending) return;
+    unlockAudio();
     // Show what the user typed (with punctuation) in UI
     addMessage("user", display);
     playSound("send");
@@ -523,7 +551,7 @@ Our Deck Calculator allows you to design, price, and customise your deck in unde
     } finally {
       // no-op: sending already handled above
     }
-  }, [addMessage, config.webhook.route, input, sending, sessionId, typeOutBotMessage]);
+  }, [addMessage, config.webhook.route, input, sending, sessionId, typeOutBotMessage, unlockAudio]);
 
   // Send a pre-defined quick message using the same webhook flow
   const sendQuickMessage = useCallback(
@@ -531,6 +559,7 @@ Our Deck Calculator allows you to design, price, and customise your deck in unde
       const display = String(quickText || "").trim();
       const message = normalizeInput(sendText ?? quickText);
       if (!message || !sessionId || sending) return;
+      unlockAudio();
       // Show the display text in UI
       addMessage("user", display);
       playSound("send");
@@ -566,7 +595,7 @@ Our Deck Calculator allows you to design, price, and customise your deck in unde
         // no-op: sending already handled above
       }
     },
-    [addMessage, config.webhook.route, normalizeInput, sending, sessionId, typeOutBotMessage, playSound]
+    [addMessage, config.webhook.route, normalizeInput, sending, sessionId, typeOutBotMessage, playSound, unlockAudio]
   );
 
   if (!mounted) return null;
@@ -853,7 +882,10 @@ Our Deck Calculator allows you to design, price, and customise your deck in unde
       <button
         className={`chat-toggle${positionLeft ? " position-left" : ""}`}
         ref={toggleRef}
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => setOpen((v) => {
+          if (!v) unlockAudio();
+          return !v;
+        })}
         aria-expanded={open}
         aria-label="Open chat"
         style={{
