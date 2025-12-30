@@ -155,6 +155,7 @@ export default function Chatbot({ config: userConfig }) {
   const [hasFocus, setHasFocus] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [isShort, setIsShort] = useState(false);
   // CTAs persist per message; no global active gating
   // Typing speed for bot replies (milliseconds per character)
   // Adjust via `config.typingSpeedMs` when using the component.
@@ -209,6 +210,17 @@ export default function Chatbot({ config: userConfig }) {
       if (mq.removeEventListener) mq.removeEventListener("change", update);
       else mq.removeListener(update);
     };
+  }, []);
+
+  // Track short viewports to enable outer scroll when needed
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const baseHeight = 560;
+    const buffer = 32;
+    const update = () => setIsShort(window.innerHeight < baseHeight + buffer);
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
   }, []);
 
   // Clear any running typing interval on unmount
@@ -577,6 +589,7 @@ Shall we get started?`
       <div
         className={`chat-container${open ? " open" : ""}${positionLeft ? " position-left" : ""}`}
         ref={containerRef}
+        data-short={!isMobile && isShort ? "true" : "false"}
         style={{
           display: "flex",
           ...(isMobile
@@ -591,6 +604,13 @@ Shall we get started?`
                 maxHeight: "100dvh",
                 borderRadius: 0,
                 boxShadow: "none",
+                overflowY: "auto",
+              }
+            : null),
+          ...(!isMobile && isShort
+            ? {
+                height: "calc(100vh - 32px)",
+                maxHeight: "calc(100vh - 32px)",
                 overflowY: "auto",
               }
             : null),
@@ -775,6 +795,7 @@ Shall we get started?`
                 </div>
               )}
           </div>
+          <div className="chat-actions">
           <div className="chat-input">
             <textarea
               placeholder="Type your message here..."
@@ -824,10 +845,6 @@ Shall we get started?`
               I need engineering expert review - Send an Email
             </button>
           </div>
-          <div className="chat-footer">
-            <a href={config.branding.poweredBy.link} target="_blank">
-              {config.branding.poweredBy.text}
-            </a>
           </div>
           </div>
         )}
@@ -873,6 +890,7 @@ Shall we get started?`
           --chat--color-user: var(--n8n-chat-user-color, #1A1A1A);
           --chat--color-background: var(--n8n-chat-background-color, #ffffff);
           --chat--color-font: var(--n8n-chat-font-color, #333333);
+          --chat--container-height: 560px;
           font-family: var(--font-geist-sans, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif);
         }
 
@@ -884,12 +902,13 @@ Shall we get started?`
           display: flex;
           flex-direction: column;
           width: 420px;
-          height: 640px;
+          height: var(--chat--container-height);
+          max-height: calc(100vh - 32px);
           background: var(--chat--color-background);
           border-radius: 28px;
           box-shadow: 0 8px 32px rgba(133, 79, 255, 0.15);
           border: 2px solid var(--chat--color-primary);
-          overflow-y: auto;
+          overflow-y: hidden;
           overflow-x: hidden;
           font-family: inherit;
           opacity: 0;
@@ -913,7 +932,7 @@ Shall we get started?`
         .n8n-chat-widget .chat-shell {
           display: flex;
           flex-direction: column;
-          min-height: 100%;
+          min-height: var(--chat--container-height);
           height: 100%;
         }
 
@@ -924,7 +943,8 @@ Shall we get started?`
           justify-content: center;
           gap: 12px;
           border-bottom: 1px solid rgba(133, 79, 255, 0.1);
-          position: relative;
+          position: static;
+          background: var(--chat--color-background);
         }
 
         .n8n-chat-widget .close-button {
@@ -1059,7 +1079,7 @@ Shall we get started?`
           margin: 0;
         }
 
-        .n8n-chat-widget .chat-interface { display: none; flex-direction: column; height: 100%; }
+        .n8n-chat-widget .chat-interface { display: none; flex-direction: column; height: auto; min-height: var(--chat--container-height); }
         .n8n-chat-widget .chat-interface.active { display: flex; }
 
         .n8n-chat-widget .chat-messages {
@@ -1070,6 +1090,7 @@ Shall we get started?`
           display: flex;
           flex-direction: column;
           max-height: 100%;
+          min-height: 0;
         }
 
         .n8n-chat-widget .chat-message {
@@ -1129,6 +1150,22 @@ Shall we get started?`
           0% { opacity: 0; transform: translateY(12px) scale(0.98); }
           60% { opacity: 1; transform: translateY(-2px) scale(1.01); }
           100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .n8n-chat-widget .chat-actions {
+          background: var(--chat--color-background);
+        }
+
+        .n8n-chat-widget .chat-container:not([data-short="true"]) .brand-header {
+          position: sticky;
+          top: 0;
+          z-index: 2;
+        }
+
+        .n8n-chat-widget .chat-container:not([data-short="true"]) .chat-actions {
+          position: sticky;
+          bottom: 0;
+          z-index: 2;
         }
 
         .n8n-chat-widget .chat-input {
@@ -1226,24 +1263,6 @@ Shall we get started?`
         .n8n-chat-widget .chat-toggle:hover { transform: scale(1.05); }
         .n8n-chat-widget .chat-toggle svg { width: 24px; height: 24px; fill: currentColor; }
 
-        .n8n-chat-widget .chat-footer {
-          padding: 8px;
-          text-align: center;
-          background: var(--chat--color-background);
-          border-top: 1px solid rgba(133, 79, 255, 0.1);
-        }
-
-        .n8n-chat-widget .chat-footer a {
-          color: var(--chat--color-primary);
-          text-decoration: none;
-          font-size: 12px;
-          opacity: 0.8;
-          transition: opacity 0.2s;
-          font-family: inherit;
-        }
-
-        .n8n-chat-widget .chat-footer a:hover { opacity: 1; }
-
         /* Message CTA buttons for links */
         .n8n-chat-widget .message-actions {
           padding: 0 16px 12px 16px;
@@ -1325,19 +1344,22 @@ Shall we get started?`
 
         @media (min-width: 641px) and (max-height: 700px) {
           .n8n-chat-widget .chat-container {
-            top: 16px;
-            bottom: 16px;
-            height: auto;
+            top: auto;
+            bottom: 24px;
             max-height: calc(100vh - 32px);
           }
 
           .n8n-chat-widget .chat-shell {
-            min-height: max-content;
+            min-height: var(--chat--container-height);
+          }
+
+          .n8n-chat-widget .chat-interface {
+            min-height: var(--chat--container-height);
           }
 
           .n8n-chat-widget .chat-messages {
-            height: clamp(200px, 40vh, 360px);
-            flex: 0 0 auto;
+            flex: 1;
+            min-height: 0;
           }
         }
       `}</style>
