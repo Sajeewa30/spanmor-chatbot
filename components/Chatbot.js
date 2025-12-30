@@ -479,9 +479,7 @@ export default function Chatbot({ config: userConfig }) {
     setSending(false);
     typeOutBotMessage(
       `Hi there! Welcome to Spanmor. I'm here to help you plan your deck and get a quick, accurate quote.
-Our Deck Calculator allows you to design, price, and customise your deck in under 5 minutes. You can see a visual layout preview, get real-time pricing, and download a PDF of your design and quote.
-
-Shall we get started?`
+Our Deck Calculator allows you to design, price, and customise your deck in under 5 minutes. You can see a visual layout preview, get real-time pricing, and download a PDF of your design and quote.`
     );
   }, [typeOutBotMessage]);
 
@@ -594,16 +592,16 @@ Shall we get started?`
           display: "flex",
           ...(isMobile
             ? {
-                top: 0,
-                right: 0,
-                bottom: 0,
-                left: 0,
-                width: "100%",
-                height: "100%",
-                maxWidth: "100vw",
-                maxHeight: "100dvh",
-                borderRadius: 0,
-                boxShadow: "none",
+                top: "auto",
+                right: 16,
+                bottom: 16,
+                left: 16,
+                width: "calc(100vw - 32px)",
+                height: "80vh",
+                maxWidth: "calc(100vw - 32px)",
+                maxHeight: "80vh",
+                borderRadius: 20,
+                boxShadow: "0 8px 32px rgba(133, 79, 255, 0.15)",
                 overflowY: "auto",
               }
             : null),
@@ -1289,14 +1287,17 @@ Shall we get started?`
 
         @media (max-width: 640px) {
           .n8n-chat-widget .chat-container {
-            inset: 0;
+            inset: auto;
             margin: 0;
-            width: 100%;
-            max-width: 100vw;
-            height: 100%;
-            max-height: 100dvh;
-            border-radius: 0;
-            box-shadow: none;
+            left: 16px;
+            right: 16px;
+            bottom: 16px;
+            width: calc(100vw - 32px);
+            max-width: calc(100vw - 32px);
+            height: 80vh;
+            max-height: 80vh;
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(133, 79, 255, 0.15);
             transform: none;
             overflow-y: auto;
           }
