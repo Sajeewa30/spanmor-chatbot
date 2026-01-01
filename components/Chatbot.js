@@ -156,6 +156,22 @@ export default function Chatbot({ config: userConfig }) {
   const [mounted, setMounted] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isShort, setIsShort] = useState(false);
+  const [contactOpen, setContactOpen] = useState(false);
+  const [contactStatus, setContactStatus] = useState({ type: "", message: "" });
+  const [contactSending, setContactSending] = useState(false);
+  const [contactForm, setContactForm] = useState({
+    name: "",
+    phone: "",
+    email: "",
+    message: "",
+  });
+  const [contactTouched, setContactTouched] = useState({
+    name: false,
+    phone: false,
+    email: false,
+    message: false,
+  });
+  const [contactErrors, setContactErrors] = useState({});
   // CTAs persist per message; no global active gating
   // Typing speed for bot replies (milliseconds per character)
   // Adjust via `config.typingSpeedMs` when using the component.
@@ -509,6 +525,104 @@ export default function Chatbot({ config: userConfig }) {
 Our Deck Calculator allows you to design, price, and customise your deck in under 5 minutes. You can see a visual layout preview, get real-time pricing, and download a PDF of your design and quote.`
     );
   }, [typeOutBotMessage, unlockAudio]);
+
+  const openContactForm = useCallback(() => {
+    setContactOpen(true);
+    setContactStatus({ type: "", message: "" });
+  }, []);
+
+  const closeContactForm = useCallback(() => {
+    setContactOpen(false);
+    setContactStatus({ type: "", message: "" });
+  }, []);
+
+  const updateContactField = useCallback((field, value) => {
+    setContactForm((prev) => ({ ...prev, [field]: value }));
+  }, []);
+
+  const validateContactForm = useCallback((values) => {
+    const errors = {};
+    const name = values.name.trim();
+    const phone = values.phone.trim();
+    const email = values.email.trim();
+    const message = values.message.trim();
+    const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    const phoneDigits = phone.replace(/\D/g, "");
+
+    if (!name) errors.name = "Name is required.";
+    if (!phone) errors.phone = "Phone is required.";
+    else if (phoneDigits.length < 7) errors.phone = "Enter a valid phone number.";
+    if (!email) errors.email = "Email is required.";
+    else if (!emailOk) errors.email = "Enter a valid email address.";
+    if (!message) errors.message = "How Can We Help? is required.";
+
+    return errors;
+  }, []);
+
+  useEffect(() => {
+    setContactErrors(validateContactForm(contactForm));
+  }, [contactForm, validateContactForm]);
+
+  const markContactTouched = useCallback((field) => {
+    setContactTouched((prev) => ({ ...prev, [field]: true }));
+  }, []);
+
+  const submitContactForm = useCallback(
+    async (e) => {
+      e.preventDefault();
+      if (contactSending) return;
+      setContactSending(true);
+      setContactStatus({ type: "", message: "" });
+      setContactTouched({
+        name: true,
+        phone: true,
+        email: true,
+        message: true,
+      });
+      const errors = validateContactForm(contactForm);
+      if (Object.keys(errors).length > 0) {
+        setContactErrors(errors);
+        setContactSending(false);
+        return;
+      }
+
+      try {
+        const res = await fetch("/api/contact", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: contactForm.name.trim(),
+            phone: contactForm.phone.trim(),
+            email: contactForm.email.trim(),
+            message: contactForm.message.trim(),
+            sessionId,
+          }),
+        });
+        if (!res.ok) {
+          throw new Error("Request failed");
+        }
+        setContactStatus({
+          type: "success",
+          message: "Thanks! We will be in touch shortly.",
+        });
+        setContactForm({ name: "", phone: "", email: "", message: "" });
+        setContactTouched({
+          name: false,
+          phone: false,
+          email: false,
+          message: false,
+        });
+      } catch (err) {
+        setContactStatus({
+          type: "error",
+          message: "Sorry, something went wrong. Please try again.",
+        });
+      } finally {
+        setContactSending(false);
+      }
+    },
+    [contactForm, contactSending, sessionId, validateContactForm]
+  );
 
   const sendMessage = useCallback(async () => {
     const display = String(input ?? "").trim();
@@ -866,12 +980,103 @@ Our Deck Calculator allows you to design, price, and customise your deck in unde
               type="button"
               className="quick-reply"
               disabled={sending}
-              onClick={() => sendQuickMessage("I need engineering expert assistance")}
+              onClick={openContactForm}
               aria-label="I need engineering expert review - Send an Email"
             >
               I need engineering expert review - Send an Email
             </button>
           </div>
+          </div>
+          <div className={`contact-panel${contactOpen ? " open" : ""}`}>
+            <div className="contact-header">
+              <h3>Engineering Review</h3>
+              <button type="button" className="contact-close" onClick={closeContactForm}>
+                ✕
+              </button>
+            </div>
+            <form className="contact-form" onSubmit={submitContactForm}>
+              <label>
+                Name
+                <input
+                  type="text"
+                  value={contactForm.name}
+                  onChange={(e) => updateContactField("name", e.target.value)}
+                  onBlur={() => markContactTouched("name")}
+                  className={
+                    contactTouched.name && contactErrors.name ? "field-error" : ""
+                  }
+                  required
+                />
+                {contactTouched.name && contactErrors.name ? (
+                  <span className="contact-tooltip" role="alert">
+                    {contactErrors.name}
+                  </span>
+                ) : null}
+              </label>
+              <label>
+                Phone
+                <input
+                  type="tel"
+                  value={contactForm.phone}
+                  onChange={(e) => updateContactField("phone", e.target.value)}
+                  onBlur={() => markContactTouched("phone")}
+                  className={
+                    contactTouched.phone && contactErrors.phone ? "field-error" : ""
+                  }
+                  required
+                />
+                {contactTouched.phone && contactErrors.phone ? (
+                  <span className="contact-tooltip" role="alert">
+                    {contactErrors.phone}
+                  </span>
+                ) : null}
+              </label>
+              <label>
+                Email
+                <input
+                  type="email"
+                  value={contactForm.email}
+                  onChange={(e) => updateContactField("email", e.target.value)}
+                  onBlur={() => markContactTouched("email")}
+                  className={
+                    contactTouched.email && contactErrors.email ? "field-error" : ""
+                  }
+                  required
+                />
+                {contactTouched.email && contactErrors.email ? (
+                  <span className="contact-tooltip" role="alert">
+                    {contactErrors.email}
+                  </span>
+                ) : null}
+              </label>
+              <label>
+                How Can We Help?
+                <textarea
+                  rows={4}
+                  value={contactForm.message}
+                  onChange={(e) => updateContactField("message", e.target.value)}
+                  onBlur={() => markContactTouched("message")}
+                  className={
+                    contactTouched.message && contactErrors.message ? "field-error" : ""
+                  }
+                  required
+                />
+                {contactTouched.message && contactErrors.message ? (
+                  <span className="contact-tooltip" role="alert">
+                    {contactErrors.message}
+                  </span>
+                ) : null}
+              </label>
+              {contactStatus.message ? (
+                <div className={`contact-status ${contactStatus.type}`}>
+                  {contactStatus.message}
+                </div>
+              ) : null}
+              <button type="submit" disabled={contactSending}>
+                {contactSending ? "Sending..." : "Submit"}
+              </button>
+              <div className="contact-spacer" aria-hidden="true" />
+            </form>
           </div>
           </div>
         )}
@@ -964,6 +1169,7 @@ Our Deck Calculator allows you to design, price, and customise your deck in unde
           flex-direction: column;
           min-height: var(--chat--container-height);
           height: 100%;
+          position: relative;
         }
 
         .n8n-chat-widget .brand-header {
@@ -1317,6 +1523,147 @@ Our Deck Calculator allows you to design, price, and customise your deck in unde
           filter: brightness(1.05);
         }
 
+        .n8n-chat-widget .contact-panel {
+          position: absolute;
+          top: 0;
+          right: 0;
+          width: 100%;
+          height: 100%;
+          background: var(--chat--color-background);
+          border-left: 1px solid rgba(133, 79, 255, 0.2);
+          transform: translateX(100%);
+          transition: transform 0.28s ease;
+          display: flex;
+          flex-direction: column;
+          padding: 16px 16px 24px;
+          z-index: 3;
+          overflow-y: auto;
+        }
+
+        .n8n-chat-widget .contact-panel.open {
+          transform: translateX(0);
+        }
+
+        .n8n-chat-widget .contact-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding-bottom: 12px;
+          border-bottom: 1px solid rgba(133, 79, 255, 0.1);
+        }
+
+        .n8n-chat-widget .contact-header h3 {
+          margin: 0;
+          font-size: 16px;
+          color: var(--chat--color-font);
+        }
+
+        .n8n-chat-widget .contact-close {
+          background: none;
+          border: none;
+          color: var(--chat--color-font);
+          cursor: pointer;
+          padding: 4px;
+          font-size: 18px;
+          opacity: 0.6;
+        }
+
+        .n8n-chat-widget .contact-close:hover {
+          opacity: 1;
+        }
+
+        .n8n-chat-widget .contact-form {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          padding-top: 12px;
+          flex: 1;
+          min-height: 0;
+        }
+
+        .n8n-chat-widget .contact-form label {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          font-size: 12px;
+          color: var(--chat--color-font);
+          opacity: 0.9;
+        }
+
+        .n8n-chat-widget .contact-form input,
+        .n8n-chat-widget .contact-form textarea {
+          padding: 12px;
+          border: 1px solid rgba(133, 79, 255, 0.2);
+          border-radius: 8px;
+          background: var(--chat--color-background);
+          color: var(--chat--color-font);
+          font-family: inherit;
+          font-size: 14px;
+        }
+
+        .n8n-chat-widget .contact-form textarea {
+          resize: vertical;
+        }
+
+        .n8n-chat-widget .contact-form .field-error {
+          border-color: #E0282A;
+          box-shadow: 0 0 0 1px rgba(224, 40, 42, 0.35);
+        }
+
+        .n8n-chat-widget .contact-tooltip {
+          display: inline-block;
+          background: #E0282A;
+          color: #ffffff;
+          font-size: 12px;
+          padding: 6px 8px;
+          border-radius: 8px;
+          position: relative;
+          max-width: 100%;
+        }
+
+        .n8n-chat-widget .contact-tooltip::after {
+          content: "";
+          position: absolute;
+          top: -6px;
+          left: 12px;
+          border-width: 0 6px 6px 6px;
+          border-style: solid;
+          border-color: transparent transparent #E0282A transparent;
+        }
+
+        .n8n-chat-widget .contact-form button {
+          margin-top: auto;
+          background: linear-gradient(135deg, var(--chat--color-primary) 0%, var(--chat--color-secondary) 100%);
+          color: white;
+          border: none;
+          border-radius: 8px;
+          padding: 12px 16px;
+          cursor: pointer;
+          font-family: inherit;
+          font-weight: 500;
+        }
+
+        .n8n-chat-widget .contact-spacer {
+          height: 16px;
+          flex: 0 0 auto;
+        }
+
+        .n8n-chat-widget .contact-status {
+          font-size: 13px;
+          padding: 8px 10px;
+          border-radius: 8px;
+        }
+
+        .n8n-chat-widget .contact-status.success {
+          background: rgba(46, 204, 113, 0.12);
+          color: #1d7a4a;
+        }
+
+        .n8n-chat-widget .contact-status.error {
+          background: rgba(231, 76, 60, 0.12);
+          color: #8d2b22;
+        }
+
         @media (max-width: 640px) {
           .n8n-chat-widget .chat-container {
             inset: auto;
@@ -1347,6 +1694,7 @@ Our Deck Calculator allows you to design, price, and customise your deck in unde
               calc(16px + env(safe-area-inset-left));
             gap: 12px;
           }
+
 
           .n8n-chat-widget .welcome-text {
             font-size: 13px;
