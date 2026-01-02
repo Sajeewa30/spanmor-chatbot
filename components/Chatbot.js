@@ -183,6 +183,7 @@ export default function Chatbot({ config: userConfig }) {
     joistConfig: false,
   });
   const [deckErrors, setDeckErrors] = useState({});
+  const [deckPrompted, setDeckPrompted] = useState(false);
   const [contactTouched, setContactTouched] = useState({
     name: false,
     phone: false,
@@ -539,6 +540,7 @@ export default function Chatbot({ config: userConfig }) {
     setSessionId(id);
     setStarted(true);
     setSending(false);
+    setDeckPrompted(false);
     typeOutBotMessage(
       `Hi! I'm here to help you plan your deck and get a quick, accurate quote.
 Our Deck Calculator allows you to design, price, and customise your deck in under 5 minutes.`
@@ -785,10 +787,13 @@ Our Deck Calculator allows you to design, price, and customise your deck in unde
 
   const handleOpenDeckForm = useCallback(() => {
     openDeckForm();
-    typeOutBotMessage(
-      "Please fill in your deck details in the form to get a fast and accurate deck quote."
-    );
-  }, [openDeckForm, typeOutBotMessage]);
+    if (!deckPrompted) {
+      typeOutBotMessage(
+        "Please fill in your deck details in the form to get a fast and accurate deck quote."
+      );
+      setDeckPrompted(true);
+    }
+  }, [deckPrompted, openDeckForm, typeOutBotMessage]);
 
   const sendMessage = useCallback(async () => {
     const display = String(input ?? "").trim();
