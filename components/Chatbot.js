@@ -165,6 +165,24 @@ export default function Chatbot({ config: userConfig }) {
     email: "",
     message: "",
   });
+  const [deckFormOpen, setDeckFormOpen] = useState(false);
+  const [deckForm, setDeckForm] = useState({
+    length: "",
+    width: "",
+    minHeight: "",
+    maxHeight: "",
+    deckConfig: "",
+    joistConfig: "",
+  });
+  const [deckTouched, setDeckTouched] = useState({
+    length: false,
+    width: false,
+    minHeight: false,
+    maxHeight: false,
+    deckConfig: false,
+    joistConfig: false,
+  });
+  const [deckErrors, setDeckErrors] = useState({});
   const [contactTouched, setContactTouched] = useState({
     name: false,
     phone: false,
@@ -311,6 +329,7 @@ export default function Chatbot({ config: userConfig }) {
     1,
     Math.max(0, Number.isFinite(receiveVolumeRaw) ? receiveVolumeRaw : 0.4)
   );
+
 
   const unlockAudio = useCallback(() => {
     if (audioUnlockedRef.current) return;
@@ -521,13 +540,14 @@ export default function Chatbot({ config: userConfig }) {
     setStarted(true);
     setSending(false);
     typeOutBotMessage(
-      `Hi there! Welcome to Spanmor. I'm here to help you plan your deck and get a quick, accurate quote.
-Our Deck Calculator allows you to design, price, and customise your deck in under 5 minutes. You can see a visual layout preview, get real-time pricing, and download a PDF of your design and quote.`
+      `Hi! I'm here to help you plan your deck and get a quick, accurate quote.
+Our Deck Calculator allows you to design, price, and customise your deck in under 5 minutes.`
     );
   }, [typeOutBotMessage, unlockAudio]);
 
   const openContactForm = useCallback(() => {
     setContactOpen(true);
+    setDeckFormOpen(false);
     setContactStatus({ type: "", message: "" });
   }, []);
 
@@ -536,9 +556,91 @@ Our Deck Calculator allows you to design, price, and customise your deck in unde
     setContactStatus({ type: "", message: "" });
   }, []);
 
+  const openDeckForm = useCallback(() => {
+    setDeckFormOpen(true);
+    setContactOpen(false);
+  }, []);
+
+  const closeDeckForm = useCallback(() => {
+    setDeckFormOpen(false);
+  }, []);
+
   const updateContactField = useCallback((field, value) => {
     setContactForm((prev) => ({ ...prev, [field]: value }));
   }, []);
+
+  const updateDeckField = useCallback((field, value) => {
+    setDeckForm((prev) => ({ ...prev, [field]: value }));
+  }, []);
+
+  const parseDimension = useCallback((value) => {
+    const raw = String(value || "").trim().toLowerCase();
+    if (!raw) return null;
+    const match = raw.match(/^([0-9]*\.?[0-9]+)\s*(mm|cm|m|in|ft)?$/i);
+    if (!match) return null;
+    const amount = Number(match[1]);
+    if (!Number.isFinite(amount)) return null;
+    const unit = match[2] || "mm";
+    const unitMap = {
+      mm: 1,
+      cm: 10,
+      m: 1000,
+      in: 25.4,
+      ft: 304.8,
+    };
+    const factor = unitMap[unit];
+    if (!factor) return null;
+    return Math.round(amount * factor);
+  }, []);
+
+  const deckParsed = {
+    length: parseDimension(deckForm.length),
+    width: parseDimension(deckForm.width),
+    minHeight: parseDimension(deckForm.minHeight),
+    maxHeight: parseDimension(deckForm.maxHeight),
+  };
+
+  const validateDeckForm = useCallback(
+    (values) => {
+      const errors = {};
+      const parsed = {
+        length: parseDimension(values.length),
+        width: parseDimension(values.width),
+        minHeight: parseDimension(values.minHeight),
+        maxHeight: parseDimension(values.maxHeight),
+      };
+
+      if (!values.deckConfig) errors.deckConfig = "Select a deck configuration.";
+      if (!values.joistConfig) errors.joistConfig = "Select a joist configuration.";
+
+      if (!parsed.length) errors.length = "Enter a valid length.";
+      else if (parsed.length < 1000 || parsed.length > 9000)
+        errors.length = "Length must be 1000 to 9000 mm.";
+
+      if (!parsed.width) errors.width = "Enter a valid width.";
+      else if (parsed.width < 1000 || parsed.width > 9000)
+        errors.width = "Width must be 1000 to 9000 mm.";
+
+      if (!parsed.minHeight) errors.minHeight = "Enter a valid minimum height.";
+      else if (parsed.minHeight < 125 || parsed.minHeight > 2800)
+        errors.minHeight = "Minimum height must be 125 to 2800 mm.";
+
+      if (!parsed.maxHeight) errors.maxHeight = "Enter a valid maximum height.";
+      else if (parsed.maxHeight < 125 || parsed.maxHeight > 2800)
+        errors.maxHeight = "Maximum height must be 125 to 2800 mm.";
+
+      if (
+        parsed.minHeight &&
+        parsed.maxHeight &&
+        parsed.maxHeight <= parsed.minHeight
+      ) {
+        errors.maxHeight = "Maximum height must be greater than minimum height.";
+      }
+
+      return { errors, parsed };
+    },
+    [parseDimension]
+  );
 
   const validateContactForm = useCallback((values) => {
     const errors = {};
@@ -563,9 +665,66 @@ Our Deck Calculator allows you to design, price, and customise your deck in unde
     setContactErrors(validateContactForm(contactForm));
   }, [contactForm, validateContactForm]);
 
+  useEffect(() => {
+    const { errors } = validateDeckForm(deckForm);
+    setDeckErrors(errors);
+  }, [deckForm, validateDeckForm]);
+
   const markContactTouched = useCallback((field) => {
     setContactTouched((prev) => ({ ...prev, [field]: true }));
   }, []);
+
+  const markDeckTouched = useCallback((field) => {
+    setDeckTouched((prev) => ({ ...prev, [field]: true }));
+  }, []);
+
+  const submitDeckForm = useCallback(
+    (e) => {
+      e.preventDefault();
+      setDeckTouched({
+        length: true,
+        width: true,
+        minHeight: true,
+        maxHeight: true,
+        deckConfig: true,
+        joistConfig: true,
+      });
+      const { errors, parsed } = validateDeckForm(deckForm);
+      setDeckErrors(errors);
+      if (Object.keys(errors).length > 0) return;
+
+      const url =
+        "https://calculator.spanmor.com.au/" +
+        `?length_mm=${parsed.length}` +
+        `&width_mm=${parsed.width}` +
+        `&min_height_mm=${parsed.minHeight}` +
+        `&max_height_mm=${parsed.maxHeight}` +
+        `&deckconfig=${deckForm.deckConfig}` +
+        `&joistconfig=${deckForm.joistConfig}`;
+
+      typeOutBotMessage(
+        `All set! Open the Spanmor Deck Calculator with your details: [Spanmor Deck Calculator](${url})`
+      );
+      setDeckFormOpen(false);
+      setDeckForm({
+        length: "",
+        width: "",
+        minHeight: "",
+        maxHeight: "",
+        deckConfig: "",
+        joistConfig: "",
+      });
+      setDeckTouched({
+        length: false,
+        width: false,
+        minHeight: false,
+        maxHeight: false,
+        deckConfig: false,
+        joistConfig: false,
+      });
+    },
+    [deckForm, typeOutBotMessage, validateDeckForm]
+  );
 
   const submitContactForm = useCallback(
     async (e) => {
@@ -623,6 +782,13 @@ Our Deck Calculator allows you to design, price, and customise your deck in unde
     },
     [contactForm, contactSending, sessionId, validateContactForm]
   );
+
+  const handleOpenDeckForm = useCallback(() => {
+    openDeckForm();
+    typeOutBotMessage(
+      "Please fill in your deck details in the form to get a fast and accurate deck quote."
+    );
+  }, [openDeckForm, typeOutBotMessage]);
 
   const sendMessage = useCallback(async () => {
     const display = String(input ?? "").trim();
@@ -962,20 +1128,22 @@ Our Deck Calculator allows you to design, price, and customise your deck in unde
               type="button"
               className="quick-reply"
               disabled={sending}
-              onClick={() => sendQuickMessage("I need to start a quote with my deck size")}
-              aria-label="I need to start a quote with my deck size"
-            >
-              I need to start a quote with my deck size
-            </button>
-            <button
-              type="button"
-              className="quick-reply"
-              disabled={sending}
               onClick={() => sendQuickMessage("I Want to know about Spanmor")}
               aria-label="I Want to know about Spanmor"
             >
               I Want to know about Spanmor
             </button>
+
+            <button
+              type="button"
+              className="quick-reply"
+              disabled={sending}
+              onClick={handleOpenDeckForm}
+              aria-label="I need to start a quote with my deck size"
+            >
+              I need to start a quote with my deck size
+            </button>
+            
             <button
               type="button"
               className="quick-reply"
@@ -987,6 +1155,152 @@ Our Deck Calculator allows you to design, price, and customise your deck in unde
             </button>
           </div>
           </div>
+          <div className={`deck-panel${deckFormOpen ? " open" : ""}`}>
+            <div className="contact-header">
+              <h3>Deck Calculator</h3>
+              <button type="button" className="contact-close" onClick={closeDeckForm}>
+                ✕
+              </button>
+            </div>
+            <form className="deck-form" onSubmit={submitDeckForm} noValidate>
+              <label>
+                Length
+                <input
+                  type="text"
+                  placeholder="e.g. 6m or 6000mm"
+                  value={deckForm.length}
+                  onChange={(e) => updateDeckField("length", e.target.value)}
+                  onBlur={() => markDeckTouched("length")}
+                  className={
+                    deckTouched.length && deckErrors.length ? "field-error" : ""
+                  }
+                  aria-required="true"
+                />
+                {deckParsed.length ? (
+                  <span className="deck-help">Converted: {deckParsed.length} mm</span>
+                ) : null}
+                {deckTouched.length && deckErrors.length ? (
+                  <span className="contact-tooltip" role="alert">
+                    {deckErrors.length}
+                  </span>
+                ) : null}
+              </label>
+              <label>
+                Width
+                <input
+                  type="text"
+                  placeholder="e.g. 3.2m or 3200mm"
+                  value={deckForm.width}
+                  onChange={(e) => updateDeckField("width", e.target.value)}
+                  onBlur={() => markDeckTouched("width")}
+                  className={
+                    deckTouched.width && deckErrors.width ? "field-error" : ""
+                  }
+                  aria-required="true"
+                />
+                {deckParsed.width ? (
+                  <span className="deck-help">Converted: {deckParsed.width} mm</span>
+                ) : null}
+                {deckTouched.width && deckErrors.width ? (
+                  <span className="contact-tooltip" role="alert">
+                    {deckErrors.width}
+                  </span>
+                ) : null}
+              </label>
+              <label>
+                Minimum Height
+                <input
+                  type="text"
+                  placeholder="e.g. 1.5m or 1500mm"
+                  value={deckForm.minHeight}
+                  onChange={(e) => updateDeckField("minHeight", e.target.value)}
+                  onBlur={() => markDeckTouched("minHeight")}
+                  className={
+                    deckTouched.minHeight && deckErrors.minHeight ? "field-error" : ""
+                  }
+                  aria-required="true"
+                />
+                {deckParsed.minHeight ? (
+                  <span className="deck-help">
+                    Converted: {deckParsed.minHeight} mm
+                  </span>
+                ) : null}
+                {deckTouched.minHeight && deckErrors.minHeight ? (
+                  <span className="contact-tooltip" role="alert">
+                    {deckErrors.minHeight}
+                  </span>
+                ) : null}
+              </label>
+              <label>
+                Maximum Height
+                <input
+                  type="text"
+                  placeholder="e.g. 2m or 2000mm"
+                  value={deckForm.maxHeight}
+                  onChange={(e) => updateDeckField("maxHeight", e.target.value)}
+                  onBlur={() => markDeckTouched("maxHeight")}
+                  className={
+                    deckTouched.maxHeight && deckErrors.maxHeight ? "field-error" : ""
+                  }
+                  aria-required="true"
+                />
+                {deckParsed.maxHeight ? (
+                  <span className="deck-help">
+                    Converted: {deckParsed.maxHeight} mm
+                  </span>
+                ) : null}
+                {deckTouched.maxHeight && deckErrors.maxHeight ? (
+                  <span className="contact-tooltip" role="alert">
+                    {deckErrors.maxHeight}
+                  </span>
+                ) : null}
+              </label>
+              <label>
+                Deck Configuration
+                <select
+                  value={deckForm.deckConfig}
+                  onChange={(e) => updateDeckField("deckConfig", e.target.value)}
+                  onBlur={() => markDeckTouched("deckConfig")}
+                  className={
+                    deckTouched.deckConfig && deckErrors.deckConfig ? "field-error" : ""
+                  }
+                  aria-required="true"
+                >
+                  <option value="">Select an option</option>
+                  <option value="freeStanding">Free standing</option>
+                  <option value="wallMounted">Wall mounted</option>
+                </select>
+                {deckTouched.deckConfig && deckErrors.deckConfig ? (
+                  <span className="contact-tooltip" role="alert">
+                    {deckErrors.deckConfig}
+                  </span>
+                ) : null}
+              </label>
+              <label>
+                Joist Configuration
+                <select
+                  value={deckForm.joistConfig}
+                  onChange={(e) => updateDeckField("joistConfig", e.target.value)}
+                  onBlur={() => markDeckTouched("joistConfig")}
+                  className={
+                    deckTouched.joistConfig && deckErrors.joistConfig ? "field-error" : ""
+                  }
+                  aria-required="true"
+                >
+                  <option value="">Select an option</option>
+                  <option value="flushfinish">Flush finish</option>
+                  <option value="overthetop">Over the top</option>
+                </select>
+                {deckTouched.joistConfig && deckErrors.joistConfig ? (
+                  <span className="contact-tooltip" role="alert">
+                    {deckErrors.joistConfig}
+                  </span>
+                ) : null}
+              </label>
+              <button type="submit">Generate Link</button>
+              <div className="contact-spacer" aria-hidden="true" />
+            </form>
+          </div>
           <div className={`contact-panel${contactOpen ? " open" : ""}`}>
             <div className="contact-header">
               <h3>Engineering Review</h3>
@@ -994,7 +1308,7 @@ Our Deck Calculator allows you to design, price, and customise your deck in unde
                 ✕
               </button>
             </div>
-            <form className="contact-form" onSubmit={submitContactForm}>
+            <form className="contact-form" onSubmit={submitContactForm} noValidate>
               <label>
                 Name
                 <input
@@ -1005,7 +1319,7 @@ Our Deck Calculator allows you to design, price, and customise your deck in unde
                   className={
                     contactTouched.name && contactErrors.name ? "field-error" : ""
                   }
-                  required
+                  aria-required="true"
                 />
                 {contactTouched.name && contactErrors.name ? (
                   <span className="contact-tooltip" role="alert">
@@ -1023,7 +1337,7 @@ Our Deck Calculator allows you to design, price, and customise your deck in unde
                   className={
                     contactTouched.phone && contactErrors.phone ? "field-error" : ""
                   }
-                  required
+                  aria-required="true"
                 />
                 {contactTouched.phone && contactErrors.phone ? (
                   <span className="contact-tooltip" role="alert">
@@ -1041,7 +1355,7 @@ Our Deck Calculator allows you to design, price, and customise your deck in unde
                   className={
                     contactTouched.email && contactErrors.email ? "field-error" : ""
                   }
-                  required
+                  aria-required="true"
                 />
                 {contactTouched.email && contactErrors.email ? (
                   <span className="contact-tooltip" role="alert">
@@ -1059,7 +1373,7 @@ Our Deck Calculator allows you to design, price, and customise your deck in unde
                   className={
                     contactTouched.message && contactErrors.message ? "field-error" : ""
                   }
-                  required
+                  aria-required="true"
                 />
                 {contactTouched.message && contactErrors.message ? (
                   <span className="contact-tooltip" role="alert">
@@ -1544,6 +1858,27 @@ Our Deck Calculator allows you to design, price, and customise your deck in unde
           transform: translateX(0);
         }
 
+        .n8n-chat-widget .deck-panel {
+          position: absolute;
+          top: 0;
+          right: 0;
+          width: 100%;
+          height: 100%;
+          background: var(--chat--color-background);
+          border-left: 1px solid rgba(133, 79, 255, 0.2);
+          transform: translateX(100%);
+          transition: transform 0.28s ease;
+          display: flex;
+          flex-direction: column;
+          padding: 16px 16px 24px;
+          z-index: 4;
+          overflow-y: auto;
+        }
+
+        .n8n-chat-widget .deck-panel.open {
+          transform: translateX(0);
+        }
+
         .n8n-chat-widget .contact-header {
           display: flex;
           align-items: center;
@@ -1572,7 +1907,8 @@ Our Deck Calculator allows you to design, price, and customise your deck in unde
           opacity: 1;
         }
 
-        .n8n-chat-widget .contact-form {
+        .n8n-chat-widget .contact-form,
+        .n8n-chat-widget .deck-form {
           display: flex;
           flex-direction: column;
           gap: 12px;
@@ -1581,7 +1917,8 @@ Our Deck Calculator allows you to design, price, and customise your deck in unde
           min-height: 0;
         }
 
-        .n8n-chat-widget .contact-form label {
+        .n8n-chat-widget .contact-form label,
+        .n8n-chat-widget .deck-form label {
           display: flex;
           flex-direction: column;
           gap: 6px;
@@ -1591,7 +1928,9 @@ Our Deck Calculator allows you to design, price, and customise your deck in unde
         }
 
         .n8n-chat-widget .contact-form input,
-        .n8n-chat-widget .contact-form textarea {
+        .n8n-chat-widget .contact-form textarea,
+        .n8n-chat-widget .deck-form input,
+        .n8n-chat-widget .deck-form select {
           padding: 12px;
           border: 1px solid rgba(133, 79, 255, 0.2);
           border-radius: 8px;
@@ -1603,6 +1942,12 @@ Our Deck Calculator allows you to design, price, and customise your deck in unde
 
         .n8n-chat-widget .contact-form textarea {
           resize: vertical;
+        }
+
+        .n8n-chat-widget .deck-help {
+          font-size: 12px;
+          color: var(--chat--color-font);
+          opacity: 0.75;
         }
 
         .n8n-chat-widget .contact-form .field-error {
@@ -1631,7 +1976,8 @@ Our Deck Calculator allows you to design, price, and customise your deck in unde
           border-color: transparent transparent #E0282A transparent;
         }
 
-        .n8n-chat-widget .contact-form button {
+        .n8n-chat-widget .contact-form button,
+        .n8n-chat-widget .deck-form button {
           margin-top: auto;
           background: linear-gradient(135deg, var(--chat--color-primary) 0%, var(--chat--color-secondary) 100%);
           color: white;
