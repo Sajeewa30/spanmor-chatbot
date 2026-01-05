@@ -463,7 +463,7 @@ export default function Chatbot({ config: userConfig }) {
   }, []);
 
   const typeOutBotMessage = useCallback(
-    (fullText) => {
+    (fullText, opts = {}) => {
       const text = String(fullText ?? "").trim();
 
       // If a previous typing timer is active, clear it before starting a new one
@@ -501,7 +501,11 @@ export default function Chatbot({ config: userConfig }) {
       // Create the target bot message we will progressively update
       // Extract links once so we can show CTAs and clickable anchors immediately
       const links = extractLinks(text);
-      setMessages((prev) => [...prev, { id, role: "bot", text: "", links }]);
+      const actions = Array.isArray(opts.actions) ? opts.actions : undefined;
+      setMessages((prev) => [
+        ...prev,
+        { id, role: "bot", text: "", links, actions },
+      ]);
 
       let i = 0;
 
@@ -542,8 +546,7 @@ export default function Chatbot({ config: userConfig }) {
     setSending(false);
     setDeckPrompted(false);
     typeOutBotMessage(
-      `Hi! I'm here to help you plan your deck and get a quick, accurate quote.
-Our Deck Calculator allows you to design, price, and customise your deck in under 5 minutes.`
+      `Hi! I'm here to help you with your deck project.` 
     );
   }, [typeOutBotMessage, unlockAudio]);
 
@@ -566,6 +569,55 @@ Our Deck Calculator allows you to design, price, and customise your deck in unde
   const closeDeckForm = useCallback(() => {
     setDeckFormOpen(false);
   }, []);
+
+  const isDeckQuoteIntent = useCallback((text) => {
+    const s = String(text || "").toLowerCase();
+    return (
+      /deck\s*(quote|calculator|estimate|price|pricing)/i.test(s) ||
+      /start\s*(deck\s*)?(quote|calculator)/i.test(s) ||
+      /get\s*(a\s*)?quote/i.test(s) ||
+      /quote\s*(my\s*)?deck/i.test(s) ||
+      /calculate\s*(my\s*)?deck/i.test(s) ||
+      /deck\s*size/i.test(s)
+    );
+  }, []);
+
+  const deckFormToken = "[[open_deck_form]]";
+  const contactFormToken = "[[open_contact_form]]";
+
+  const extractActionsFromText = useCallback(
+    (rawText) => {
+      const text = String(rawText || "");
+      const actions = [];
+      let cleaned = text;
+      if (cleaned.includes(deckFormToken)) {
+        cleaned = cleaned.replace(deckFormToken, "").replace(/\n{3,}/g, "\n\n").trim();
+        actions.push({ type: "openDeckForm", label: "Start deck quote" });
+      }
+      if (cleaned.includes(contactFormToken)) {
+        cleaned = cleaned
+          .replace(contactFormToken, "")
+          .replace(/\n{3,}/g, "\n\n")
+          .trim();
+        actions.push({ type: "openContactForm", label: "Contact us" });
+      }
+      return { cleaned, actions };
+    },
+    [contactFormToken, deckFormToken]
+  );
+
+  const handleMessageAction = useCallback(
+    (action) => {
+      if (!action) return;
+      if (action.type === "openDeckForm") {
+        openDeckForm();
+      }
+      if (action.type === "openContactForm") {
+        openContactForm();
+      }
+    },
+    [openContactForm, openDeckForm]
+  );
 
   const updateContactField = useCallback((field, value) => {
     setContactForm((prev) => ({ ...prev, [field]: value }));
@@ -804,6 +856,15 @@ Our Deck Calculator allows you to design, price, and customise your deck in unde
     addMessage("user", display);
     playSound("send");
     setInput("");
+
+    if (isDeckQuoteIntent(message)) {
+      typeOutBotMessage(
+        "Tap Start deck quote to open the deck details form.",
+        { actions: [{ type: "openDeckForm", label: "Start deck quote" }] }
+      );
+      return;
+    }
+
     setSending(true);
 
     const payload = {
@@ -827,16 +888,27 @@ Our Deck Calculator allows you to design, price, and customise your deck in unde
         data = null;
       }
       const botReply = Array.isArray(data) ? data?.[0]?.output : data?.output;
+      const { cleaned, actions } = extractActionsFromText(botReply);
       // Hide the loading indicator and start typing the reply
       setSending(false);
-      typeOutBotMessage(botReply || "Hi! I'm here to help you.");
+      typeOutBotMessage(cleaned || "Hi! I'm here to help you.", { actions });
     } catch (e) {
       setSending(false);
       addMessage("bot", "Sorry, there was a problem sending your message.");
     } finally {
       // no-op: sending already handled above
     }
-  }, [addMessage, config.webhook.route, input, sending, sessionId, typeOutBotMessage, unlockAudio]);
+  }, [
+    addMessage,
+    config.webhook.route,
+    extractActionsFromText,
+    input,
+    isDeckQuoteIntent,
+    sending,
+    sessionId,
+    typeOutBotMessage,
+    unlockAudio,
+  ]);
 
   // Send a pre-defined quick message using the same webhook flow
   const sendQuickMessage = useCallback(
@@ -871,8 +943,9 @@ Our Deck Calculator allows you to design, price, and customise your deck in unde
           data = null;
         }
         const botReply = Array.isArray(data) ? data?.[0]?.output : data?.output;
+        const { cleaned, actions } = extractActionsFromText(botReply);
         setSending(false);
-        typeOutBotMessage(botReply || "Hi! I'm here to help you.");
+        typeOutBotMessage(cleaned || "Hi! I'm here to help you.", { actions });
       } catch (e) {
         setSending(false);
         addMessage("bot", "Sorry, there was a problem sending your message.");
@@ -880,7 +953,17 @@ Our Deck Calculator allows you to design, price, and customise your deck in unde
         // no-op: sending already handled above
       }
     },
-    [addMessage, config.webhook.route, normalizeInput, sending, sessionId, typeOutBotMessage, playSound, unlockAudio]
+    [
+      addMessage,
+      config.webhook.route,
+      extractActionsFromText,
+      normalizeInput,
+      sending,
+      sessionId,
+      typeOutBotMessage,
+      playSound,
+      unlockAudio,
+    ]
   );
 
   if (!mounted) return null;
@@ -1019,6 +1102,29 @@ Our Deck Calculator allows you to design, price, and customise your deck in unde
 
                 // Build CTA(s) attached to this message (after typing completes)
                 let cta = null;
+                let actionCta = null;
+
+                if (
+                  m.role === "bot" &&
+                  Array.isArray(m.actions) &&
+                  m.actions.length > 0 &&
+                  !isTypingMsg
+                ) {
+                  actionCta = (
+                    <div className="message-actions">
+                      {m.actions.map((action, idx) => (
+                        <button
+                          key={`action-${m.id || i}-${idx}`}
+                          type="button"
+                          className="link-action"
+                          onClick={() => handleMessageAction(action)}
+                        >
+                          {action.label || "Open"}
+                        </button>
+                      ))}
+                    </div>
+                  );
+                }
                 if (
                   m.role === "bot" &&
                   Array.isArray(m.links) &&
@@ -1090,6 +1196,7 @@ Our Deck Calculator allows you to design, price, and customise your deck in unde
                         ? sanitizeTypingDisplay(m.text)
                         : renderMessageWithLinks(m.text, { isTyping: false })}
                     </div>
+                    {actionCta}
                     {cta}
                   </React.Fragment>
                 );
@@ -1272,8 +1379,12 @@ Our Deck Calculator allows you to design, price, and customise your deck in unde
                   aria-required="true"
                 >
                   <option value="">Select an option</option>
-                  <option value="freeStanding">Free standing</option>
-                  <option value="wallMounted">Wall mounted</option>
+                  <option value="freeStanding">
+                    Free standing (independent from wall structures)
+                  </option>
+                  <option value="wallMounted">
+                    Wall mounted (attached to an existing wall)
+                  </option>
                 </select>
                 {deckTouched.deckConfig && deckErrors.deckConfig ? (
                   <span className="contact-tooltip" role="alert">
@@ -1293,8 +1404,12 @@ Our Deck Calculator allows you to design, price, and customise your deck in unde
                   aria-required="true"
                 >
                   <option value="">Select an option</option>
-                  <option value="flushfinish">Flush finish</option>
-                  <option value="overthetop">Over the top</option>
+                  <option value="flushfinish">
+                    Flush finish (joists aligned with bearer top)
+                  </option>
+                  <option value="overthetop">
+                    Over the top (joists mounted over the bearers)
+                  </option>
                 </select>
                 {deckTouched.joistConfig && deckErrors.joistConfig ? (
                   <span className="contact-tooltip" role="alert">
@@ -1302,7 +1417,7 @@ Our Deck Calculator allows you to design, price, and customise your deck in unde
                   </span>
                 ) : null}
               </label>
-              <button type="submit">Generate Link</button>
+              <button type="submit">Get the quote</button>
               <div className="contact-spacer" aria-hidden="true" />
             </form>
           </div>
@@ -1949,6 +2064,25 @@ Our Deck Calculator allows you to design, price, and customise your deck in unde
           resize: vertical;
         }
 
+        .n8n-chat-widget .deck-form {
+          gap: 10px;
+        }
+
+        .n8n-chat-widget .deck-form label {
+          font-size: 11px;
+          gap: 4px;
+        }
+
+        .n8n-chat-widget .deck-form input,
+        .n8n-chat-widget .deck-form select {
+          padding: 10px;
+          font-size: 13px;
+        }
+
+        .n8n-chat-widget .deck-help {
+          font-size: 11px;
+        }
+
         .n8n-chat-widget .deck-help {
           font-size: 12px;
           color: var(--chat--color-font);
@@ -1964,19 +2098,21 @@ Our Deck Calculator allows you to design, price, and customise your deck in unde
           display: inline-block;
           background: #E0282A;
           color: #ffffff;
-          font-size: 12px;
-          padding: 6px 8px;
-          border-radius: 8px;
+          font-size: 11px;
+          padding: 4px 6px;
+          border-radius: 6px;
           position: relative;
+          width: fit-content;
+          align-self: flex-start;
           max-width: 100%;
         }
 
         .n8n-chat-widget .contact-tooltip::after {
           content: "";
           position: absolute;
-          top: -6px;
-          left: 12px;
-          border-width: 0 6px 6px 6px;
+          top: -5px;
+          left: 10px;
+          border-width: 0 5px 5px 5px;
           border-style: solid;
           border-color: transparent transparent #E0282A transparent;
         }
