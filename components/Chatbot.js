@@ -346,7 +346,7 @@ export default function Chatbot({ config: userConfig }) {
           res.then(() => {
             audio.pause();
             audio.currentTime = 0;
-          }).catch(() => {});
+          }).catch(() => { });
         } else {
           audio.pause();
           audio.currentTime = 0;
@@ -366,7 +366,7 @@ export default function Chatbot({ config: userConfig }) {
         else audio.volume = receiveVolume;
         audio.currentTime = 0;
         const res = audio.play();
-        if (res && typeof res.catch === "function") res.catch(() => {});
+        if (res && typeof res.catch === "function") res.catch(() => { });
       } catch {
         // no-op
       }
@@ -546,7 +546,7 @@ export default function Chatbot({ config: userConfig }) {
     setSending(false);
     setDeckPrompted(false);
     typeOutBotMessage(
-      `Hi! I'm here to help you with your deck project.` 
+      `Hi! I'm here to help you with your deck project.`
     );
   }, [typeOutBotMessage, unlockAudio]);
 
@@ -989,531 +989,531 @@ export default function Chatbot({ config: userConfig }) {
           display: "flex",
           ...(isMobile
             ? {
-                top: "auto",
-                right: 16,
-                bottom: 16,
-                left: 16,
-                width: "calc(100vw - 32px)",
-                height: "80vh",
-                maxWidth: "calc(100vw - 32px)",
-                maxHeight: "80vh",
-                borderRadius: 20,
-                boxShadow: "0 8px 32px rgba(133, 79, 255, 0.15)",
-                overflowY: "auto",
-              }
+              top: "auto",
+              right: 16,
+              bottom: 16,
+              left: 16,
+              width: "calc(100vw - 32px)",
+              height: "80vh",
+              maxWidth: "calc(100vw - 32px)",
+              maxHeight: "80vh",
+              borderRadius: 20,
+              boxShadow: "0 8px 32px rgba(133, 79, 255, 0.15)",
+              overflowY: "auto",
+            }
             : null),
           ...(!isMobile && isShort
             ? {
-                height: "calc(100vh - 32px)",
-                maxHeight: "calc(100vh - 32px)",
-                overflowY: "auto",
-              }
+              height: "calc(100vh - 32px)",
+              maxHeight: "calc(100vh - 32px)",
+              overflowY: "auto",
+            }
             : null),
         }}
       >
         <div className="chat-shell">
-        {/* Welcome/new conversation view */}
-        {!started && (
-          <>
-            <div className="brand-header">
-              {config.branding.logo ? (
-                <img src={config.branding.logo} alt={config.branding.name} />
-              ) : null}
-              <button
-                className="close-button"
-                aria-label="Close"
-                onClick={() => setOpen(false)}
-              >
-                <span aria-hidden="true">×</span>
-              </button>
-            </div>
-            <div className="welcome-wrapper">
-              <div
-                className="new-conversation"
-                style={isMobile ? { padding: "6px 8px", borderRadius: 10 } : undefined}
-              >
-              <h2
-                className="welcome-text"
-                style={isMobile ? { fontSize: 13, marginBottom: 2 } : undefined}
-              >
-                {config.branding.welcomeText}
-              </h2>
-              <p className="welcome-subtext">
-                Get a fast, accurate deck quote with a guided setup. We can help you
-                plan dimensions, materials, and finishes in minutes.
-              </p>
-              <div className="welcome-highlights">
-                <div className="welcome-highlight">
-                  <span className="welcome-badge">5 min</span>
-                  <span className="welcome-label">Quick quote</span>
-                </div>
-                <div className="welcome-highlight">
-                  <span className="welcome-badge">Live</span>
-                  <span className="welcome-label">Price preview</span>
-                </div>
-                <div className="welcome-highlight">
-                  <span className="welcome-badge">PDF</span>
-                  <span className="welcome-label">Shareable plan</span>
-                </div>
-              </div>
-              <button className="new-chat-btn" onClick={startNewConversation}>
-                <svg
-                  className="message-icon"
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
+          {/* Welcome/new conversation view */}
+          {!started && (
+            <>
+              <div className="brand-header">
+                {config.branding.logo ? (
+                  <img src={config.branding.logo} alt={config.branding.name} />
+                ) : null}
+                <button
+                  className="close-button"
+                  aria-label="Close"
+                  onClick={() => setOpen(false)}
                 >
-                  <path
-                    fill="currentColor"
-                    d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.2L4 17.2V4h16v12z"
-                  />
-                </svg>
-                Send us a message
-              </button>
-              <p
-                className="response-text"
-                style={isMobile ? { fontSize: 11 } : undefined}
-              >
-                {config.branding.responseTimeText}
-              </p>
+                  <span aria-hidden="true">×</span>
+                </button>
               </div>
-            </div>
-          </>
-        )}
-
-        {/* Chat interface */}
-        {started && (
-          <div className="chat-interface active">
-            <div className="brand-header">
-              {config.branding.logo ? (
-                <img src={config.branding.logo} alt={config.branding.name} />
-              ) : null}
-              <button
-                className="close-button"
-                aria-label="Close"
-                onClick={() => setOpen(false)}
-              >
-                <span aria-hidden="true">×</span>
-              </button>
-            </div>
-            <div className="chat-messages" ref={messagesRef}>
-              {messages.map((m, i) => {
-                const isTypingMsg = Boolean(typingTimerRef.current) && m.id === typingMessageIdRef.current;
-                const isLastBot = i === messages.length - 1 && m.role === "bot";
-
-                // Build CTA(s) attached to this message (after typing completes)
-                let cta = null;
-                let actionCta = null;
-
-                if (
-                  m.role === "bot" &&
-                  Array.isArray(m.actions) &&
-                  m.actions.length > 0 &&
-                  !isTypingMsg
-                ) {
-                  actionCta = (
-                    <div className="message-actions">
-                      {m.actions.map((action, idx) => (
-                        <button
-                          key={`action-${m.id || i}-${idx}`}
-                          type="button"
-                          className="link-action"
-                          onClick={() => handleMessageAction(action)}
-                        >
-                          {action.label || "Open"}
-                        </button>
-                      ))}
+              <div className="welcome-wrapper">
+                <div
+                  className="new-conversation"
+                  style={isMobile ? { padding: "6px 8px", borderRadius: 10 } : undefined}
+                >
+                  <h2
+                    className="welcome-text"
+                    style={isMobile ? { fontSize: 13, marginBottom: 2 } : undefined}
+                  >
+                    {config.branding.welcomeText}
+                  </h2>
+                  <p className="welcome-subtext">
+                    Get a fast, accurate deck quote with a guided setup. We can help you
+                    plan dimensions, materials, and finishes in minutes.
+                  </p>
+                  <div className="welcome-highlights">
+                    <div className="welcome-highlight">
+                      <span className="welcome-badge">5 min</span>
+                      <span className="welcome-label">Quick quote</span>
                     </div>
-                  );
-                }
-                if (
-                  m.role === "bot" &&
-                  Array.isArray(m.links) &&
-                  m.links.length > 0 &&
-                  !isTypingMsg
-                ) {
-                  const createLabel = (lnk) => {
-                    const cleanText = (t) => t
-                      .replace(/[\)\]\}\>\.,!?:;]+$/g, "") // strip trailing punctuation
-                      .replace(/^\s*(the|a|an)\s+/i, "") // drop leading articles
-                      .replace(/\b(page|webpage|site)\b/gi, "") // drop generic words
-                      .replace(/\s{2,}/g, " ")
-                      .trim();
+                    <div className="welcome-highlight">
+                      <span className="welcome-badge">Live</span>
+                      <span className="welcome-label">Price preview</span>
+                    </div>
+                    <div className="welcome-highlight">
+                      <span className="welcome-badge">PDF</span>
+                      <span className="welcome-label">Shareable plan</span>
+                    </div>
+                  </div>
+                  <button className="new-chat-btn" onClick={startNewConversation}>
+                    <svg
+                      className="message-icon"
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        fill="currentColor"
+                        d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.2L4 17.2V4h16v12z"
+                      />
+                    </svg>
+                    Send us a message
+                  </button>
+                  <p
+                    className="response-text"
+                    style={isMobile ? { fontSize: 11 } : undefined}
+                  >
+                    {config.branding.responseTimeText}
+                  </p>
+                </div>
+              </div>
+            </>
+          )}
 
-                    const raw = cleanText(String(lnk.label || ""));
-                    const looksLikeUrlish = /https?:|:\/\//i.test(raw) || /\//.test(raw) || /\.[a-z]{2,}$/i.test(raw);
-                    if (raw && raw !== lnk.url && !looksLikeUrlish) {
-                      const title = raw.replace(/\b\w/g, (c) => c.toUpperCase());
-                      return `Open ${title}`;
-                    }
-                    try {
-                      const u = new URL(lnk.url);
-                      const host = (u.hostname || "").replace(/^www\./, "");
-                      const path = (u.pathname || "/");
-                      const segs = path.split("/").filter(Boolean);
-                      if (segs.length === 0) {
-                        // homepage: use site name from host
-                        const site = host.split(".")[0] || host;
-                        const title = site.charAt(0).toUpperCase() + site.slice(1);
+          {/* Chat interface */}
+          {started && (
+            <div className="chat-interface active">
+              <div className="brand-header">
+                {config.branding.logo ? (
+                  <img src={config.branding.logo} alt={config.branding.name} />
+                ) : null}
+                <button
+                  className="close-button"
+                  aria-label="Close"
+                  onClick={() => setOpen(false)}
+                >
+                  <span aria-hidden="true">×</span>
+                </button>
+              </div>
+              <div className="chat-messages" ref={messagesRef}>
+                {messages.map((m, i) => {
+                  const isTypingMsg = Boolean(typingTimerRef.current) && m.id === typingMessageIdRef.current;
+                  const isLastBot = i === messages.length - 1 && m.role === "bot";
+
+                  // Build CTA(s) attached to this message (after typing completes)
+                  let cta = null;
+                  let actionCta = null;
+
+                  if (
+                    m.role === "bot" &&
+                    Array.isArray(m.actions) &&
+                    m.actions.length > 0 &&
+                    !isTypingMsg
+                  ) {
+                    actionCta = (
+                      <div className="message-actions">
+                        {m.actions.map((action, idx) => (
+                          <button
+                            key={`action-${m.id || i}-${idx}`}
+                            type="button"
+                            className="link-action"
+                            onClick={() => handleMessageAction(action)}
+                          >
+                            {action.label || "Open"}
+                          </button>
+                        ))}
+                      </div>
+                    );
+                  }
+                  if (
+                    m.role === "bot" &&
+                    Array.isArray(m.links) &&
+                    m.links.length > 0 &&
+                    !isTypingMsg
+                  ) {
+                    const createLabel = (lnk) => {
+                      const cleanText = (t) => t
+                        .replace(/[\)\]\}\>\.,!?:;]+$/g, "") // strip trailing punctuation
+                        .replace(/^\s*(the|a|an)\s+/i, "") // drop leading articles
+                        .replace(/\b(page|webpage|site)\b/gi, "") // drop generic words
+                        .replace(/\s{2,}/g, " ")
+                        .trim();
+
+                      const raw = cleanText(String(lnk.label || ""));
+                      const looksLikeUrlish = /https?:|:\/\//i.test(raw) || /\//.test(raw) || /\.[a-z]{2,}$/i.test(raw);
+                      if (raw && raw !== lnk.url && !looksLikeUrlish) {
+                        const title = raw.replace(/\b\w/g, (c) => c.toUpperCase());
                         return `Open ${title}`;
                       }
-                      const last = cleanText(decodeURIComponent(segs[segs.length - 1])
-                        .replace(/[\-_]+/g, " ")
-                        .replace(/\s+/g, " "));
-                      const title = last.replace(/\b\w/g, (c) => c.toUpperCase());
-                      return `Open ${title}`;
-                    } catch (_) {
-                      return "Open Link";
-                    }
-                  };
+                      try {
+                        const u = new URL(lnk.url);
+                        const host = (u.hostname || "").replace(/^www\./, "");
+                        const path = (u.pathname || "/");
+                        const segs = path.split("/").filter(Boolean);
+                        if (segs.length === 0) {
+                          // homepage: use site name from host
+                          const site = host.split(".")[0] || host;
+                          const title = site.charAt(0).toUpperCase() + site.slice(1);
+                          return `Open ${title}`;
+                        }
+                        const last = cleanText(decodeURIComponent(segs[segs.length - 1])
+                          .replace(/[\-_]+/g, " ")
+                          .replace(/\s+/g, " "));
+                        const title = last.replace(/\b\w/g, (c) => c.toUpperCase());
+                        return `Open ${title}`;
+                      } catch (_) {
+                        return "Open Link";
+                      }
+                    };
 
-                  cta = (
-                    <div className="message-actions">
-                      {m.links.map((lnk, idx) => (
-                        <button
-                          key={`cta-${m.id || i}-${idx}`}
-                          type="button"
-                          className="link-action"
-                          onClick={() => window.open(lnk.url, "_blank", "noopener,noreferrer")}
-                          aria-label={createLabel(lnk)}
-                          title={lnk.url}
-                        >
-                          {createLabel(lnk)}
-                        </button>
-                      ))}
-                    </div>
+                    cta = (
+                      <div className="message-actions">
+                        {m.links.map((lnk, idx) => (
+                          <button
+                            key={`cta-${m.id || i}-${idx}`}
+                            type="button"
+                            className="link-action"
+                            onClick={() => window.open(lnk.url, "_blank", "noopener,noreferrer")}
+                            aria-label={createLabel(lnk)}
+                            title={lnk.url}
+                          >
+                            {createLabel(lnk)}
+                          </button>
+                        ))}
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <React.Fragment key={m.id || i}>
+                      <div
+                        className={`chat-message ${m.role}`}
+                        ref={isLastBot ? lastBotRef : null}
+                        style={{ whiteSpace: "pre-wrap" }}
+                      >
+                        {/* While typing: stable, sanitized plain text (no links visible) */}
+                        {isTypingMsg
+                          ? sanitizeTypingDisplay(m.text)
+                          : renderMessageWithLinks(m.text, { isTyping: false })}
+                      </div>
+                      {actionCta}
+                      {cta}
+                    </React.Fragment>
                   );
-                }
+                })}
+                {/* User typing indicator */}
+                {hasFocus && !sending && input && (
+                  <div className="chat-message user typing-indicator">
+                    <span className="typing-dots"><span className="dot" /><span className="dot" /><span className="dot" /></span>
+                  </div>
+                )}
+                {/* Bot typing indicator while awaiting response */}
+                {sending && (
+                  <div className="chat-message bot typing-indicator" ref={lastBotRef}>
+                    <span className="typing-dots"><span className="dot" /><span className="dot" /><span className="dot" /></span>
+                  </div>
+                )}
+              </div>
+              <div className="chat-actions">
+                <div className="chat-input">
+                  <textarea
+                    placeholder="Type your message here..."
+                    rows={1}
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onFocus={() => setHasFocus(true)}
+                    onBlur={() => setHasFocus(false)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        sendMessage();
+                      }
+                    }}
+                  />
+                  <button type="button" onClick={sendMessage} disabled={sending}>
+                    {sending ? "Sending..." : "Send"}
+                  </button>
+                </div>
+                {/* Quick-start options (always available) */}
+                <div className="quick-replies">
+                  <button
+                    type="button"
+                    className="quick-reply"
+                    disabled={sending}
+                    onClick={() => sendQuickMessage("I Want to know about Spanmor")}
+                    aria-label="I Want to know about Spanmor"
+                  >
+                    I Want to know about Spanmor
+                  </button>
 
-                return (
-                  <React.Fragment key={m.id || i}>
-                    <div
-                      className={`chat-message ${m.role}`}
-                      ref={isLastBot ? lastBotRef : null}
-                      style={{ whiteSpace: "pre-wrap" }}
+                  <button
+                    type="button"
+                    className="quick-reply"
+                    disabled={sending}
+                    onClick={handleOpenDeckForm}
+                    aria-label="I need to start a quote with my deck size"
+                  >
+                    I need to start a quote with my deck size
+                  </button>
+
+                  <button
+                    type="button"
+                    className="quick-reply"
+                    disabled={sending}
+                    onClick={openContactForm}
+                    aria-label="I need engineering expert review - Send an Email"
+                  >
+                    I need engineering expert review - Send an Email
+                  </button>
+                </div>
+              </div>
+              <div className={`deck-panel${deckFormOpen ? " open" : ""}`}>
+                <div className="contact-header">
+                  <h3>Deck Calculator</h3>
+                  <button type="button" className="contact-close" onClick={closeDeckForm}>
+                    ✕
+                  </button>
+                </div>
+                <form className="deck-form" onSubmit={submitDeckForm} noValidate>
+                  <label>
+                    Length
+                    <input
+                      type="text"
+                      placeholder="e.g. 6m or 6000mm"
+                      value={deckForm.length}
+                      onChange={(e) => updateDeckField("length", e.target.value)}
+                      onBlur={() => markDeckTouched("length")}
+                      className={
+                        deckTouched.length && deckErrors.length ? "field-error" : ""
+                      }
+                      aria-required="true"
+                    />
+                    {deckParsed.length ? (
+                      <span className="deck-help">Converted: {deckParsed.length} mm</span>
+                    ) : null}
+                    {deckTouched.length && deckErrors.length ? (
+                      <span className="contact-tooltip" role="alert">
+                        {deckErrors.length}
+                      </span>
+                    ) : null}
+                  </label>
+                  <label>
+                    Width
+                    <input
+                      type="text"
+                      placeholder="e.g. 3.2m or 3200mm"
+                      value={deckForm.width}
+                      onChange={(e) => updateDeckField("width", e.target.value)}
+                      onBlur={() => markDeckTouched("width")}
+                      className={
+                        deckTouched.width && deckErrors.width ? "field-error" : ""
+                      }
+                      aria-required="true"
+                    />
+                    {deckParsed.width ? (
+                      <span className="deck-help">Converted: {deckParsed.width} mm</span>
+                    ) : null}
+                    {deckTouched.width && deckErrors.width ? (
+                      <span className="contact-tooltip" role="alert">
+                        {deckErrors.width}
+                      </span>
+                    ) : null}
+                  </label>
+                  <label>
+                    Minimum Height
+                    <input
+                      type="text"
+                      placeholder="e.g. 1.5m or 1500mm"
+                      value={deckForm.minHeight}
+                      onChange={(e) => updateDeckField("minHeight", e.target.value)}
+                      onBlur={() => markDeckTouched("minHeight")}
+                      className={
+                        deckTouched.minHeight && deckErrors.minHeight ? "field-error" : ""
+                      }
+                      aria-required="true"
+                    />
+                    {deckParsed.minHeight ? (
+                      <span className="deck-help">
+                        Converted: {deckParsed.minHeight} mm
+                      </span>
+                    ) : null}
+                    {deckTouched.minHeight && deckErrors.minHeight ? (
+                      <span className="contact-tooltip" role="alert">
+                        {deckErrors.minHeight}
+                      </span>
+                    ) : null}
+                  </label>
+                  <label>
+                    Maximum Height
+                    <input
+                      type="text"
+                      placeholder="e.g. 2m or 2000mm"
+                      value={deckForm.maxHeight}
+                      onChange={(e) => updateDeckField("maxHeight", e.target.value)}
+                      onBlur={() => markDeckTouched("maxHeight")}
+                      className={
+                        deckTouched.maxHeight && deckErrors.maxHeight ? "field-error" : ""
+                      }
+                      aria-required="true"
+                    />
+                    {deckParsed.maxHeight ? (
+                      <span className="deck-help">
+                        Converted: {deckParsed.maxHeight} mm
+                      </span>
+                    ) : null}
+                    {deckTouched.maxHeight && deckErrors.maxHeight ? (
+                      <span className="contact-tooltip" role="alert">
+                        {deckErrors.maxHeight}
+                      </span>
+                    ) : null}
+                  </label>
+                  <label>
+                    Deck Configuration
+                    <select
+                      value={deckForm.deckConfig}
+                      onChange={(e) => updateDeckField("deckConfig", e.target.value)}
+                      onBlur={() => markDeckTouched("deckConfig")}
+                      className={
+                        deckTouched.deckConfig && deckErrors.deckConfig ? "field-error" : ""
+                      }
+                      aria-required="true"
                     >
-                      {/* While typing: stable, sanitized plain text (no links visible) */}
-                      {isTypingMsg
-                        ? sanitizeTypingDisplay(m.text)
-                        : renderMessageWithLinks(m.text, { isTyping: false })}
+                      <option value="">Select an option</option>
+                      <option value="freeStanding">
+                        Free standing (independent from wall structures)
+                      </option>
+                      <option value="wallMounted">
+                        Wall mounted (attached to an existing wall)
+                      </option>
+                    </select>
+                    {deckTouched.deckConfig && deckErrors.deckConfig ? (
+                      <span className="contact-tooltip" role="alert">
+                        {deckErrors.deckConfig}
+                      </span>
+                    ) : null}
+                  </label>
+                  <label>
+                    Joist Configuration
+                    <select
+                      value={deckForm.joistConfig}
+                      onChange={(e) => updateDeckField("joistConfig", e.target.value)}
+                      onBlur={() => markDeckTouched("joistConfig")}
+                      className={
+                        deckTouched.joistConfig && deckErrors.joistConfig ? "field-error" : ""
+                      }
+                      aria-required="true"
+                    >
+                      <option value="">Select an option</option>
+                      <option value="flushfinish">
+                        Flush finish (joists aligned with bearer top)
+                      </option>
+                      <option value="overthetop">
+                        Over the top (joists mounted over the bearers)
+                      </option>
+                    </select>
+                    {deckTouched.joistConfig && deckErrors.joistConfig ? (
+                      <span className="contact-tooltip" role="alert">
+                        {deckErrors.joistConfig}
+                      </span>
+                    ) : null}
+                  </label>
+                  <button type="submit">Get the quote</button>
+                  <div className="contact-spacer" aria-hidden="true" />
+                </form>
+              </div>
+              <div className={`contact-panel${contactOpen ? " open" : ""}`}>
+                <div className="contact-header">
+                  <h3>Engineering Review</h3>
+                  <button type="button" className="contact-close" onClick={closeContactForm}>
+                    ✕
+                  </button>
+                </div>
+                <form className="contact-form" onSubmit={submitContactForm} noValidate>
+                  <label>
+                    Name
+                    <input
+                      type="text"
+                      value={contactForm.name}
+                      onChange={(e) => updateContactField("name", e.target.value)}
+                      onBlur={() => markContactTouched("name")}
+                      className={
+                        contactTouched.name && contactErrors.name ? "field-error" : ""
+                      }
+                      aria-required="true"
+                    />
+                    {contactTouched.name && contactErrors.name ? (
+                      <span className="contact-tooltip" role="alert">
+                        {contactErrors.name}
+                      </span>
+                    ) : null}
+                  </label>
+                  <label>
+                    Phone
+                    <input
+                      type="tel"
+                      value={contactForm.phone}
+                      onChange={(e) => updateContactField("phone", e.target.value)}
+                      onBlur={() => markContactTouched("phone")}
+                      className={
+                        contactTouched.phone && contactErrors.phone ? "field-error" : ""
+                      }
+                      aria-required="true"
+                    />
+                    {contactTouched.phone && contactErrors.phone ? (
+                      <span className="contact-tooltip" role="alert">
+                        {contactErrors.phone}
+                      </span>
+                    ) : null}
+                  </label>
+                  <label>
+                    Email
+                    <input
+                      type="email"
+                      value={contactForm.email}
+                      onChange={(e) => updateContactField("email", e.target.value)}
+                      onBlur={() => markContactTouched("email")}
+                      className={
+                        contactTouched.email && contactErrors.email ? "field-error" : ""
+                      }
+                      aria-required="true"
+                    />
+                    {contactTouched.email && contactErrors.email ? (
+                      <span className="contact-tooltip" role="alert">
+                        {contactErrors.email}
+                      </span>
+                    ) : null}
+                  </label>
+                  <label>
+                    How Can We Help?
+                    <textarea
+                      rows={4}
+                      value={contactForm.message}
+                      onChange={(e) => updateContactField("message", e.target.value)}
+                      onBlur={() => markContactTouched("message")}
+                      className={
+                        contactTouched.message && contactErrors.message ? "field-error" : ""
+                      }
+                      aria-required="true"
+                    />
+                    {contactTouched.message && contactErrors.message ? (
+                      <span className="contact-tooltip" role="alert">
+                        {contactErrors.message}
+                      </span>
+                    ) : null}
+                  </label>
+                  {contactStatus.message ? (
+                    <div className={`contact-status ${contactStatus.type}`}>
+                      {contactStatus.message}
                     </div>
-                    {actionCta}
-                    {cta}
-                  </React.Fragment>
-                );
-              })}
-              {/* User typing indicator */}
-              {hasFocus && !sending && input && (
-                <div className="chat-message user typing-indicator">
-                  <span className="typing-dots"><span className="dot" /><span className="dot" /><span className="dot" /></span>
-                </div>
-              )}
-              {/* Bot typing indicator while awaiting response */}
-              {sending && (
-                <div className="chat-message bot typing-indicator" ref={lastBotRef}>
-                  <span className="typing-dots"><span className="dot" /><span className="dot" /><span className="dot" /></span>
-                </div>
-              )}
-          </div>
-          <div className="chat-actions">
-          <div className="chat-input">
-            <textarea
-              placeholder="Type your message here..."
-              rows={1}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onFocus={() => setHasFocus(true)}
-              onBlur={() => setHasFocus(false)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  sendMessage();
-                }
-              }}
-            />
-            <button type="button" onClick={sendMessage} disabled={sending}>
-              {sending ? "Sending..." : "Send"}
-            </button>
-          </div>
-          {/* Quick-start options (always available) */}
-          <div className="quick-replies">
-            <button
-              type="button"
-              className="quick-reply"
-              disabled={sending}
-              onClick={() => sendQuickMessage("I Want to know about Spanmor")}
-              aria-label="I Want to know about Spanmor"
-            >
-              I Want to know about Spanmor
-            </button>
-
-            <button
-              type="button"
-              className="quick-reply"
-              disabled={sending}
-              onClick={handleOpenDeckForm}
-              aria-label="I need to start a quote with my deck size"
-            >
-              I need to start a quote with my deck size
-            </button>
-            
-            <button
-              type="button"
-              className="quick-reply"
-              disabled={sending}
-              onClick={openContactForm}
-              aria-label="I need engineering expert review - Send an Email"
-            >
-              I need engineering expert review - Send an Email
-            </button>
-          </div>
-          </div>
-          <div className={`deck-panel${deckFormOpen ? " open" : ""}`}>
-            <div className="contact-header">
-              <h3>Deck Calculator</h3>
-              <button type="button" className="contact-close" onClick={closeDeckForm}>
-                ✕
-              </button>
+                  ) : null}
+                  <button type="submit" disabled={contactSending}>
+                    {contactSending ? "Sending..." : "Submit"}
+                  </button>
+                  <div className="contact-spacer" aria-hidden="true" />
+                </form>
+              </div>
             </div>
-            <form className="deck-form" onSubmit={submitDeckForm} noValidate>
-              <label>
-                Length
-                <input
-                  type="text"
-                  placeholder="e.g. 6m or 6000mm"
-                  value={deckForm.length}
-                  onChange={(e) => updateDeckField("length", e.target.value)}
-                  onBlur={() => markDeckTouched("length")}
-                  className={
-                    deckTouched.length && deckErrors.length ? "field-error" : ""
-                  }
-                  aria-required="true"
-                />
-                {deckParsed.length ? (
-                  <span className="deck-help">Converted: {deckParsed.length} mm</span>
-                ) : null}
-                {deckTouched.length && deckErrors.length ? (
-                  <span className="contact-tooltip" role="alert">
-                    {deckErrors.length}
-                  </span>
-                ) : null}
-              </label>
-              <label>
-                Width
-                <input
-                  type="text"
-                  placeholder="e.g. 3.2m or 3200mm"
-                  value={deckForm.width}
-                  onChange={(e) => updateDeckField("width", e.target.value)}
-                  onBlur={() => markDeckTouched("width")}
-                  className={
-                    deckTouched.width && deckErrors.width ? "field-error" : ""
-                  }
-                  aria-required="true"
-                />
-                {deckParsed.width ? (
-                  <span className="deck-help">Converted: {deckParsed.width} mm</span>
-                ) : null}
-                {deckTouched.width && deckErrors.width ? (
-                  <span className="contact-tooltip" role="alert">
-                    {deckErrors.width}
-                  </span>
-                ) : null}
-              </label>
-              <label>
-                Minimum Height
-                <input
-                  type="text"
-                  placeholder="e.g. 1.5m or 1500mm"
-                  value={deckForm.minHeight}
-                  onChange={(e) => updateDeckField("minHeight", e.target.value)}
-                  onBlur={() => markDeckTouched("minHeight")}
-                  className={
-                    deckTouched.minHeight && deckErrors.minHeight ? "field-error" : ""
-                  }
-                  aria-required="true"
-                />
-                {deckParsed.minHeight ? (
-                  <span className="deck-help">
-                    Converted: {deckParsed.minHeight} mm
-                  </span>
-                ) : null}
-                {deckTouched.minHeight && deckErrors.minHeight ? (
-                  <span className="contact-tooltip" role="alert">
-                    {deckErrors.minHeight}
-                  </span>
-                ) : null}
-              </label>
-              <label>
-                Maximum Height
-                <input
-                  type="text"
-                  placeholder="e.g. 2m or 2000mm"
-                  value={deckForm.maxHeight}
-                  onChange={(e) => updateDeckField("maxHeight", e.target.value)}
-                  onBlur={() => markDeckTouched("maxHeight")}
-                  className={
-                    deckTouched.maxHeight && deckErrors.maxHeight ? "field-error" : ""
-                  }
-                  aria-required="true"
-                />
-                {deckParsed.maxHeight ? (
-                  <span className="deck-help">
-                    Converted: {deckParsed.maxHeight} mm
-                  </span>
-                ) : null}
-                {deckTouched.maxHeight && deckErrors.maxHeight ? (
-                  <span className="contact-tooltip" role="alert">
-                    {deckErrors.maxHeight}
-                  </span>
-                ) : null}
-              </label>
-              <label>
-                Deck Configuration
-                <select
-                  value={deckForm.deckConfig}
-                  onChange={(e) => updateDeckField("deckConfig", e.target.value)}
-                  onBlur={() => markDeckTouched("deckConfig")}
-                  className={
-                    deckTouched.deckConfig && deckErrors.deckConfig ? "field-error" : ""
-                  }
-                  aria-required="true"
-                >
-                  <option value="">Select an option</option>
-                  <option value="freeStanding">
-                    Free standing (independent from wall structures)
-                  </option>
-                  <option value="wallMounted">
-                    Wall mounted (attached to an existing wall)
-                  </option>
-                </select>
-                {deckTouched.deckConfig && deckErrors.deckConfig ? (
-                  <span className="contact-tooltip" role="alert">
-                    {deckErrors.deckConfig}
-                  </span>
-                ) : null}
-              </label>
-              <label>
-                Joist Configuration
-                <select
-                  value={deckForm.joistConfig}
-                  onChange={(e) => updateDeckField("joistConfig", e.target.value)}
-                  onBlur={() => markDeckTouched("joistConfig")}
-                  className={
-                    deckTouched.joistConfig && deckErrors.joistConfig ? "field-error" : ""
-                  }
-                  aria-required="true"
-                >
-                  <option value="">Select an option</option>
-                  <option value="flushfinish">
-                    Flush finish (joists aligned with bearer top)
-                  </option>
-                  <option value="overthetop">
-                    Over the top (joists mounted over the bearers)
-                  </option>
-                </select>
-                {deckTouched.joistConfig && deckErrors.joistConfig ? (
-                  <span className="contact-tooltip" role="alert">
-                    {deckErrors.joistConfig}
-                  </span>
-                ) : null}
-              </label>
-              <button type="submit">Get the quote</button>
-              <div className="contact-spacer" aria-hidden="true" />
-            </form>
-          </div>
-          <div className={`contact-panel${contactOpen ? " open" : ""}`}>
-            <div className="contact-header">
-              <h3>Engineering Review</h3>
-              <button type="button" className="contact-close" onClick={closeContactForm}>
-                ✕
-              </button>
-            </div>
-            <form className="contact-form" onSubmit={submitContactForm} noValidate>
-              <label>
-                Name
-                <input
-                  type="text"
-                  value={contactForm.name}
-                  onChange={(e) => updateContactField("name", e.target.value)}
-                  onBlur={() => markContactTouched("name")}
-                  className={
-                    contactTouched.name && contactErrors.name ? "field-error" : ""
-                  }
-                  aria-required="true"
-                />
-                {contactTouched.name && contactErrors.name ? (
-                  <span className="contact-tooltip" role="alert">
-                    {contactErrors.name}
-                  </span>
-                ) : null}
-              </label>
-              <label>
-                Phone
-                <input
-                  type="tel"
-                  value={contactForm.phone}
-                  onChange={(e) => updateContactField("phone", e.target.value)}
-                  onBlur={() => markContactTouched("phone")}
-                  className={
-                    contactTouched.phone && contactErrors.phone ? "field-error" : ""
-                  }
-                  aria-required="true"
-                />
-                {contactTouched.phone && contactErrors.phone ? (
-                  <span className="contact-tooltip" role="alert">
-                    {contactErrors.phone}
-                  </span>
-                ) : null}
-              </label>
-              <label>
-                Email
-                <input
-                  type="email"
-                  value={contactForm.email}
-                  onChange={(e) => updateContactField("email", e.target.value)}
-                  onBlur={() => markContactTouched("email")}
-                  className={
-                    contactTouched.email && contactErrors.email ? "field-error" : ""
-                  }
-                  aria-required="true"
-                />
-                {contactTouched.email && contactErrors.email ? (
-                  <span className="contact-tooltip" role="alert">
-                    {contactErrors.email}
-                  </span>
-                ) : null}
-              </label>
-              <label>
-                How Can We Help?
-                <textarea
-                  rows={4}
-                  value={contactForm.message}
-                  onChange={(e) => updateContactField("message", e.target.value)}
-                  onBlur={() => markContactTouched("message")}
-                  className={
-                    contactTouched.message && contactErrors.message ? "field-error" : ""
-                  }
-                  aria-required="true"
-                />
-                {contactTouched.message && contactErrors.message ? (
-                  <span className="contact-tooltip" role="alert">
-                    {contactErrors.message}
-                  </span>
-                ) : null}
-              </label>
-              {contactStatus.message ? (
-                <div className={`contact-status ${contactStatus.type}`}>
-                  {contactStatus.message}
-                </div>
-              ) : null}
-              <button type="submit" disabled={contactSending}>
-                {contactSending ? "Sending..." : "Submit"}
-              </button>
-              <div className="contact-spacer" aria-hidden="true" />
-            </form>
-          </div>
-          </div>
-        )}
+          )}
         </div>
       </div>
 
@@ -1570,20 +1570,21 @@ export default function Chatbot({ config: userConfig }) {
           z-index: 1000;
           display: flex;
           flex-direction: column;
-          width: 420px;
+          width: 400px;
           height: var(--chat--container-height);
           max-height: calc(100vh - 32px);
-          background: var(--chat--color-background);
-          border-radius: 28px;
-          box-shadow: 0 8px 32px rgba(133, 79, 255, 0.15);
-          border: 2px solid var(--chat--color-primary);
-          overflow-y: hidden;
-          overflow-x: hidden;
+          background: rgba(255, 255, 255, 0.85);
+          backdrop-filter: blur(20px);
+          -webkit-backdrop-filter: blur(20px);
+          border-radius: 24px;
+          box-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(255, 255, 255, 0.4) inset;
+          border: 1px solid rgba(255,255,255,0.6);
+          overflow: hidden;
           font-family: inherit;
           opacity: 0;
           transform: translateY(12px) scale(0.98);
           pointer-events: none;
-          transition: opacity 0.25s ease, transform 0.25s ease;
+          transition: opacity 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
         }
 
         .n8n-chat-widget .chat-container.position-left {
@@ -1595,7 +1596,7 @@ export default function Chatbot({ config: userConfig }) {
           opacity: 1;
           transform: translateY(0) scale(1);
           pointer-events: auto;
-          animation: chat-pop 0.28s ease;
+          animation: chat-pop 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
         }
 
         .n8n-chat-widget .chat-shell {
@@ -1607,14 +1608,17 @@ export default function Chatbot({ config: userConfig }) {
         }
 
         .n8n-chat-widget .brand-header {
-          padding: 16px;
+          padding: 16px 20px;
           display: flex;
           align-items: center;
           justify-content: center;
           gap: 12px;
-          border-bottom: 1px solid rgba(133, 79, 255, 0.1);
-          position: static;
-          background: var(--chat--color-background);
+          /* Removed hard border for softer look */
+          box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+          position: relative;
+          background: rgba(255, 255, 255, 0.5);
+          backdrop-filter: blur(10px);
+          z-index: 10;
         }
 
         .n8n-chat-widget .close-button {
@@ -1622,45 +1626,50 @@ export default function Chatbot({ config: userConfig }) {
           right: 16px;
           top: 50%;
           transform: translateY(-50%);
-          background: none;
+          background: rgba(0,0,0,0.05);
           border: none;
           color: var(--chat--color-font);
           cursor: pointer;
-          padding: 4px;
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
           display: flex;
           align-items: center;
           justify-content: center;
-          transition: color 0.2s;
+          transition: all 0.2s;
           font-size: 20px;
-          opacity: 0.6;
+          opacity: 0.7;
         }
 
         .n8n-chat-widget .close-button:hover {
           opacity: 1;
+          background: rgba(0,0,0,0.1);
+          transform: translateY(-50%) rotate(90deg);
         }
 
         .n8n-chat-widget .brand-header img {
-          height: 48px;
+          height: 40px; /* Slightly smaller for balance */
           width: auto;
         }
 
         
 
         .n8n-chat-widget .new-conversation {
-          padding: 18px;
+          padding: 14px;
           text-align: center;
           width: 100%;
-          max-width: 320px;
-          margin: 12px auto 20px;
+          max-width: 300px;
+          margin: 8px auto 12px;
           display: flex;
           flex-direction: column;
           align-items: center;
           justify-content: center;
-          gap: 10px;
-          background: #f7f7f8;
-          border: 1px solid rgba(0, 0, 0, 0.06);
-          border-radius: 16px;
-          box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
+          gap: 8px;
+          background: rgba(248, 249, 250, 0.8);
+          backdrop-filter: blur(8px);
+          border: none;
+          border-radius: 14px;
+          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
           flex: 1;
         }
 
@@ -1672,7 +1681,7 @@ export default function Chatbot({ config: userConfig }) {
         }
 
         .n8n-chat-widget .welcome-text {
-          font-size: 20px;
+          font-size: 16px;
           font-weight: 600;
           color: var(--chat--color-font);
           margin: 0;
@@ -1680,43 +1689,44 @@ export default function Chatbot({ config: userConfig }) {
         }
 
         .n8n-chat-widget .welcome-subtext {
-          font-size: 13px;
+          font-size: 12px;
           color: var(--chat--color-font);
-          opacity: 0.8;
-          margin: 2px 0 8px;
+          opacity: 0.7;
+          margin: 0 0 4px;
           line-height: 1.4;
         }
 
         .n8n-chat-widget .welcome-highlights {
           display: grid;
           grid-template-columns: repeat(3, 1fr);
-          gap: 8px;
+          gap: 6px;
           width: 100%;
-          margin-bottom: 6px;
+          margin-bottom: 4px;
         }
 
         .n8n-chat-widget .welcome-highlight {
-          background: #ffffff;
-          border: 1px solid rgba(0, 0, 0, 0.06);
-          border-radius: 10px;
-          padding: 8px 6px;
+          background: rgba(255, 255, 255, 0.7);
+          border: none;
+          border-radius: 8px;
+          padding: 6px 4px;
           display: flex;
           flex-direction: column;
-          gap: 4px;
+          gap: 2px;
           align-items: center;
           justify-content: center;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.03);
         }
 
         .n8n-chat-widget .welcome-badge {
-          font-size: 12px;
+          font-size: 11px;
           font-weight: 700;
           color: var(--chat--color-primary);
         }
 
         .n8n-chat-widget .welcome-label {
-          font-size: 11px;
+          font-size: 10px;
           color: var(--chat--color-font);
-          opacity: 0.8;
+          opacity: 0.7;
           text-align: center;
         }
 
@@ -1724,28 +1734,34 @@ export default function Chatbot({ config: userConfig }) {
           display: flex;
           align-items: center;
           justify-content: center;
-          gap: 8px;
+          gap: 6px;
           width: 100%;
-          padding: 14px 18px;
+          padding: 10px 14px;
           background: linear-gradient(135deg, var(--chat--color-primary) 0%, var(--chat--color-secondary) 100%);
           color: white;
           border: none;
           border-radius: 10px;
           cursor: pointer;
-          transition: transform 0.3s;
-          font-weight: 500;
+          transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+          font-weight: 600;
+          font-size: 13px;
           font-family: inherit;
-          margin: 2px 0 0;
+          margin: 4px 0 0;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
 
-        .n8n-chat-widget .new-chat-btn:hover { transform: scale(1.02); }
+        .n8n-chat-widget .new-chat-btn:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 6px 14px rgba(0,0,0,0.12);
+          filter: brightness(1.05);
+        }
 
-        .n8n-chat-widget .message-icon { width: 20px; height: 20px; }
+        .n8n-chat-widget .message-icon { width: 16px; height: 16px; }
 
         .n8n-chat-widget .response-text {
-          font-size: 14px;
+          font-size: 11px;
           color: var(--chat--color-font);
-          opacity: 0.7;
+          opacity: 0.6;
           margin: 0;
         }
 
@@ -1755,38 +1771,43 @@ export default function Chatbot({ config: userConfig }) {
         .n8n-chat-widget .chat-messages {
           flex: 1;
           overflow-y: auto;
-          padding: 20px;
-          background: var(--chat--color-background);
+          padding: 24px 20px;
+          background: transparent; /* Updated to transparent for glass effect of container */
           display: flex;
           flex-direction: column;
           max-height: 100%;
           min-height: 0;
+          gap: 12px;
         }
 
         .n8n-chat-widget .chat-message {
-          padding: 12px 16px;
-          margin: 8px 0;
-          border-radius: 12px;
-          max-width: 80%;
+          padding: 14px 18px;
+          margin: 4px 0;
+          border-radius: 18px;
+          max-width: 85%;
           word-wrap: break-word;
           font-size: 14px;
-          line-height: 1.5;
+          line-height: 1.6;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.02);
         }
 
         .n8n-chat-widget .chat-message.user {
-          background: var(--chat--color-user);
+          background: linear-gradient(135deg, var(--chat--color-primary) 0%, var(--chat--color-secondary) 100%);
           color: #ffffff;
           align-self: flex-end;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+          border-radius: 20px 20px 4px 20px;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
           border: none;
+          /* Removed 'font-weight: 500' to keep it clean */
         }
 
         .n8n-chat-widget .chat-message.bot {
-          background: var(--chat--color-background);
-          border: 1px solid rgba(133, 79, 255, 0.2);
+          background: #f8f9fa; /* Slight contrast from white container */
+          border: none;
           color: var(--chat--color-font);
           align-self: flex-start;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+          border-radius: 20px 20px 20px 4px;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.04);
         }
 
         /* Typing indicator */
@@ -1795,6 +1816,8 @@ export default function Chatbot({ config: userConfig }) {
           align-items: center;
           justify-content: center;
           min-height: 24px;
+          padding: 12px 16px;
+          background: #f8f9fa;
         }
         .n8n-chat-widget .typing-dots {
           display: inline-flex;
@@ -1804,26 +1827,30 @@ export default function Chatbot({ config: userConfig }) {
         .n8n-chat-widget .typing-dots .dot {
           width: 6px;
           height: 6px;
-          background: currentColor;
+          background: var(--chat--color-primary); /* Uses primary color */
           border-radius: 50%;
-          opacity: 0.3;
+          opacity: 0.4;
           animation: chat-typing-blink 1.4s infinite both;
         }
         .n8n-chat-widget .typing-dots .dot:nth-child(2) { animation-delay: 0.2s; }
         .n8n-chat-widget .typing-dots .dot:nth-child(3) { animation-delay: 0.4s; }
         @keyframes chat-typing-blink {
-          0%, 80%, 100% { opacity: 0.2; }
-          40% { opacity: 1; }
+          0%, 80%, 100% { opacity: 0.2; transform: scale(0.8); }
+          40% { opacity: 1; transform: scale(1.1); }
         }
 
         @keyframes chat-pop {
           0% { opacity: 0; transform: translateY(12px) scale(0.98); }
-          60% { opacity: 1; transform: translateY(-2px) scale(1.01); }
+          50% { opacity: 1; transform: translateY(-4px) scale(1.02); }
           100% { opacity: 1; transform: translateY(0) scale(1); }
         }
 
         .n8n-chat-widget .chat-actions {
-          background: var(--chat--color-background);
+          background: rgba(255, 255, 255, 0.8);
+          backdrop-filter: blur(10px);
+          border-top: 1px solid rgba(0,0,0,0.05);
+          padding: 10px 12px 10px 12px;
+          margin-top: 4px;
         }
 
         .n8n-chat-widget .chat-container:not([data-short="true"]) .brand-header {
@@ -1839,50 +1866,71 @@ export default function Chatbot({ config: userConfig }) {
         }
 
         .n8n-chat-widget .chat-input {
-          padding: 16px;
-          background: var(--chat--color-background);
-          border-top: 1px solid rgba(133, 79, 255, 0.1);
+          padding: 0;
+          background: transparent;
+          border-top: none;
           display: flex;
-          gap: 8px;
+          gap: 10px;
+          position: relative;
         }
 
         .n8n-chat-widget .chat-input textarea {
           flex: 1;
-          padding: 12px;
-          border: 1px solid rgba(133, 79, 255, 0.2);
-          border-radius: 8px;
-          background: var(--chat--color-background);
+          padding: 10px 14px;
+          border: 1px solid rgba(0,0,0,0.08);
+          border-radius: 16px;
+          background: #ffffff;
           color: var(--chat--color-font);
           resize: none;
           font-family: inherit;
-          font-size: 14px;
+          font-size: 13px;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+          transition: all 0.2s;
+        }
+        
+        .n8n-chat-widget .chat-input textarea:focus {
+          outline: none;
+          border-color: var(--chat--color-primary);
+          box-shadow: 0 4px 12px rgba(133, 79, 255, 0.1);
         }
 
         .n8n-chat-widget .chat-input textarea::placeholder {
           color: var(--chat--color-font);
-          opacity: 0.6;
+          opacity: 0.4;
         }
 
         .n8n-chat-widget .chat-input button {
           background: linear-gradient(135deg, var(--chat--color-primary) 0%, var(--chat--color-secondary) 100%);
           color: white;
           border: none;
-          border-radius: 8px;
-          padding: 0 20px;
+          border-radius: 12px;
+          min-width: 70px;
+          height: 40px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 0 14px;
           cursor: pointer;
-          transition: transform 0.2s;
+          transition: transform 0.2s, box-shadow 0.2s;
           font-family: inherit;
           font-weight: 500;
+          font-size: 13px;
+          box-shadow: 0 4px 10px rgba(133, 79, 255, 0.2);
+          flex-shrink: 0;
         }
 
-        .n8n-chat-widget .chat-input button:hover { transform: scale(1.05); }
+        .n8n-chat-widget .chat-input button:hover { 
+          transform: scale(1.05); 
+          box-shadow: 0 6px 14px rgba(133, 79, 255, 0.3);
+        }
 
         /* Quick-reply buttons */
         .n8n-chat-widget .quick-replies {
-          padding: 0 16px 12px 16px;
+          padding: 8px 12px 6px 12px;
+          margin-bottom: 6px;
           display: flex;
-          flex-wrap: wrap;
-          gap: 8px;
+          flex-direction: column;
+          gap: 6px;
           background: var(--chat--color-background);
         }
 
@@ -1891,10 +1939,11 @@ export default function Chatbot({ config: userConfig }) {
           color: var(--chat--color-font);
           background: rgba(133, 79, 255, 0.06);
           padding: 8px 12px;
-          border-radius: 999px;
+          border-radius: 10px;
           cursor: pointer;
-          font-size: 13px;
-          line-height: 1;
+          font-size: 12px;
+          line-height: 1.3;
+          text-align: center;
           transition: background 0.2s, transform 0.2s, border-color 0.2s;
           font-family: inherit;
         }
